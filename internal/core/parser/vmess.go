@@ -24,7 +24,6 @@ type vmessConfig struct {
 	Remark   string `json:"remark,omitempty"`
 }
 
-// VMess link format structure
 type vmessLinkConfig struct {
 	V    string `json:"v"`
 	PS   string `json:"ps"`
@@ -93,8 +92,7 @@ func (c *vmessConfig) MarshalJSON() ([]byte, error) {
 			wsSettings["path"] = c.Path
 		}
 		if c.Host != "" {
-			headers := map[string]string{"Host": c.Host}
-			wsSettings["headers"] = headers
+			wsSettings["host"] = c.Host
 		}
 		if len(wsSettings) > 0 {
 			streamSettings.WSSettings = wsSettings
@@ -140,6 +138,7 @@ func (c *vmessConfig) MarshalJSON() ([]byte, error) {
 		grpcSettings["serviceName"] = c.Path
 		streamSettings.GRPCSettings = grpcSettings
 	}
+
 	if c.TLS == "tls" {
 		streamSettings.Security = "tls"
 		tlsSettings := make(map[string]interface{})
@@ -163,14 +162,35 @@ func (c *vmessConfig) MarshalJSON() ([]byte, error) {
 }
 
 func parseVMess(link string) (Config, error) {
+	if !strings.HasPrefix(link, "vmess://") {
+		return nil, fmt.Errorf("invalid VMess link format")
+	}
+
 	parts := strings.Split(link, "://")
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid VMess link format")
 	}
 
-	data, err := base64.StdEncoding.DecodeString(parts[1])
+	// Try multiple base64 decoding methods
+	var data []byte
+	var err error
+
+	// Try standard base64
+	data, err = base64.StdEncoding.DecodeString(parts[1])
 	if err != nil {
-		return nil, fmt.Errorf("invalid VMess link format: unable to decode base64")
+		// Try URL-safe base64
+		data, err = base64.URLEncoding.DecodeString(parts[1])
+		if err != nil {
+			// Try raw standard base64
+			data, err = base64.RawStdEncoding.DecodeString(parts[1])
+			if err != nil {
+				// Try raw URL-safe base64
+				data, err = base64.RawURLEncoding.DecodeString(parts[1])
+				if err != nil {
+					return nil, fmt.Errorf("invalid VMess link format: unable to decode base64")
+				}
+			}
+		}
 	}
 
 	var linkConfig vmessLinkConfig
@@ -208,6 +228,7 @@ func parseVMess(link string) (Config, error) {
 		config.AlterID = aid
 	}
 
+	// Set defaults
 	if config.Security == "" {
 		config.Security = "auto"
 	}
@@ -218,6 +239,7 @@ func parseVMess(link string) (Config, error) {
 		config.Type = "none"
 	}
 
+	// Validation
 	if config.Server == "" {
 		return nil, fmt.Errorf("server address is required")
 	}

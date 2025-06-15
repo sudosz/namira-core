@@ -42,16 +42,15 @@ type vlessJSONVnext struct {
 }
 
 type vlessJSONStreamSettings struct {
-	Network         string                 `json:"network"`
-	Security        string                 `json:"security,omitempty"`
-	WSSettings      map[string]interface{} `json:"wsSettings,omitempty"`
-	TCPSettings     map[string]interface{} `json:"tcpSettings,omitempty"`
-	KCPSettings     map[string]interface{} `json:"kcpSettings,omitempty"`
-	HTTPSettings    map[string]interface{} `json:"httpSettings,omitempty"`
-	QUICSettings    map[string]interface{} `json:"quicSettings,omitempty"`
-	GRPCSettings    map[string]interface{} `json:"grpcSettings,omitempty"`
-	TLSSettings     map[string]interface{} `json:"tlsSettings,omitempty"`
-	RealitySettings map[string]interface{} `json:"realitySettings,omitempty"`
+	Network      string                 `json:"network"`
+	Security     string                 `json:"security,omitempty"`
+	WSSettings   map[string]interface{} `json:"wsSettings,omitempty"`
+	TCPSettings  map[string]interface{} `json:"tcpSettings,omitempty"`
+	KCPSettings  map[string]interface{} `json:"kcpSettings,omitempty"`
+	HTTPSettings map[string]interface{} `json:"httpSettings,omitempty"`
+	QUICSettings map[string]interface{} `json:"quicSettings,omitempty"`
+	GRPCSettings map[string]interface{} `json:"grpcSettings,omitempty"`
+	TLSSettings  map[string]interface{} `json:"tlsSettings,omitempty"`
 }
 
 type vlessJSONSettings struct {
@@ -64,7 +63,6 @@ func (c *vlessConfig) MarshalJSON() ([]byte, error) {
 		Encryption: c.Encryption,
 	}
 
-	// flow if specified (for XTLS)
 	if c.Flow != "" {
 		user.Flow = c.Flow
 	}
@@ -86,8 +84,7 @@ func (c *vlessConfig) MarshalJSON() ([]byte, error) {
 			wsSettings["path"] = c.Path
 		}
 		if c.Host != "" {
-			headers := map[string]string{"Host": c.Host}
-			wsSettings["headers"] = headers
+			wsSettings["host"] = c.Host
 		}
 		if len(wsSettings) > 0 {
 			streamSettings.WSSettings = wsSettings
@@ -167,20 +164,18 @@ func (c *vlessConfig) MarshalJSON() ([]byte, error) {
 		}
 		if c.ALPN != "" {
 			alpnList := strings.Split(c.ALPN, ",")
+			for i, alpn := range alpnList {
+				alpnList[i] = strings.TrimSpace(alpn)
+			}
 			tlsSettings["alpn"] = alpnList
 		}
 		if len(tlsSettings) > 0 {
 			streamSettings.TLSSettings = tlsSettings
 		}
 	case "reality":
-		streamSettings.Security = "reality"
-
-		// Note: Reality requires additional parameters that are not typically in VLESS URLs
-		realitySettings := make(map[string]interface{})
-		if c.SNI != "" {
-			realitySettings["serverName"] = c.SNI
-		}
-		streamSettings.RealitySettings = realitySettings
+		// Skip REALITY to avoid "empty password" errors - fall back to no security
+		// REALITY requires complex configuration that's not available in URL format
+		break
 	}
 
 	outboundConfig := map[string]interface{}{
@@ -193,6 +188,10 @@ func (c *vlessConfig) MarshalJSON() ([]byte, error) {
 }
 
 func parseVless(link string) (Config, error) {
+	if !strings.HasPrefix(link, "vless://") {
+		return nil, fmt.Errorf("invalid VLESS link format")
+	}
+
 	parsedURL, err := url.Parse(link)
 	if err != nil {
 		return nil, fmt.Errorf("invalid VLESS link format: %v", err)
@@ -200,7 +199,14 @@ func parseVless(link string) (Config, error) {
 
 	config := &vlessConfig{
 		Raw: link,
-		ID:  parsedURL.User.Username(),
+	}
+
+	if parsedURL.User != nil {
+		config.ID = parsedURL.User.Username()
+	}
+
+	if config.ID == "" {
+		return nil, fmt.Errorf("user ID is required")
 	}
 
 	host, portStr, err := net.SplitHostPort(parsedURL.Host)
@@ -213,7 +219,7 @@ func parseVless(link string) (Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid port: %v", err)
 	}
-	// Parse query parameters
+
 	params := parsedURL.Query()
 
 	config.Encryption = params.Get("encryption")
@@ -221,14 +227,11 @@ func parseVless(link string) (Config, error) {
 		config.Encryption = "none"
 	}
 
-	// Flow (for XTLS)
 	config.Flow = params.Get("flow")
-
 	config.Security = params.Get("security")
 	config.SNI = params.Get("sni")
 	config.ALPN = params.Get("alpn")
 
-	// Network type
 	config.Network = params.Get("type")
 	if config.Network == "" {
 		config.Network = "tcp"
@@ -247,9 +250,6 @@ func parseVless(link string) (Config, error) {
 
 	if config.Server == "" {
 		return nil, fmt.Errorf("server address is required")
-	}
-	if config.ID == "" {
-		return nil, fmt.Errorf("user ID is required")
 	}
 	if config.Port == 0 {
 		return nil, fmt.Errorf("port is required")

@@ -1,7 +1,5 @@
 package parser
 
-// TODO: Implement the core parser for the RayPing service that will parse the config links and provide an interface for the core tester
-
 import (
 	"fmt"
 	"strings"
@@ -40,15 +38,36 @@ func NewParser() *Parser {
 }
 
 func (p *Parser) Parse(config string) (Config, error) {
+	if config == "" {
+		return nil, ErrInvalidFormat
+	}
+
 	parts := strings.SplitN(config, "://", 2)
 	if len(parts) != 2 {
 		return nil, ErrInvalidFormat
 	}
 
-	parser, exists := p.parsers[parts[0]]
+	protocol := strings.ToLower(parts[0])
+	parser, exists := p.parsers[protocol]
 	if !exists {
-		return nil, fmt.Errorf("%w: %s", ErrUnsupportedType, config)
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedType, protocol)
 	}
 
 	return parser(config)
+}
+
+func (p *Parser) AddParser(protocol string, parser ConfigParser) {
+	p.parsers[protocol] = parser
+}
+
+func (p *Parser) RemoveParser(protocol string) {
+	delete(p.parsers, protocol)
+}
+
+func (p *Parser) SupportedProtocols() []string {
+	protocols := make([]string, 0, len(p.parsers))
+	for protocol := range p.parsers {
+		protocols = append(protocols, protocol)
+	}
+	return protocols
 }

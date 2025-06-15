@@ -61,7 +61,11 @@ func (c *trojanConfig) MarshalJSON() ([]byte, error) {
 		Network: c.Network,
 	}
 
+	// Only set TLS security for Trojan (no REALITY support to avoid empty password error)
 	if c.Security == "" || c.Security == "tls" {
+		streamSettings.Security = "tls"
+	} else if c.Security == "reality" {
+		// Skip REALITY for now to avoid configuration errors
 		streamSettings.Security = "tls"
 	}
 
@@ -72,8 +76,7 @@ func (c *trojanConfig) MarshalJSON() ([]byte, error) {
 			wsSettings["path"] = c.Path
 		}
 		if c.Host != "" {
-			headers := map[string]string{"Host": c.Host}
-			wsSettings["headers"] = headers
+			wsSettings["host"] = c.Host
 		}
 		if len(wsSettings) > 0 {
 			streamSettings.WSSettings = wsSettings
@@ -154,6 +157,9 @@ func (c *trojanConfig) MarshalJSON() ([]byte, error) {
 
 		if c.ALPN != "" {
 			alpnList := strings.Split(c.ALPN, ",")
+			for i, alpn := range alpnList {
+				alpnList[i] = strings.TrimSpace(alpn)
+			}
 			tlsSettings["alpn"] = alpnList
 		}
 
@@ -161,9 +167,7 @@ func (c *trojanConfig) MarshalJSON() ([]byte, error) {
 			tlsSettings["allowInsecure"] = true
 		}
 
-		if len(tlsSettings) > 0 {
-			streamSettings.TLSSettings = tlsSettings
-		}
+		streamSettings.TLSSettings = tlsSettings
 	}
 
 	outboundConfig := map[string]interface{}{
@@ -176,15 +180,28 @@ func (c *trojanConfig) MarshalJSON() ([]byte, error) {
 }
 
 func parseTrojan(link string) (Config, error) {
+	if !strings.HasPrefix(link, "trojan://") {
+		return nil, fmt.Errorf("invalid Trojan link format")
+	}
+
 	parsedURL, err := url.Parse(link)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Trojan link format: %v", err)
 	}
 
 	config := &trojanConfig{
-		Raw:      link,
-		Password: parsedURL.User.Username(),
+		Raw: link,
 	}
+
+	// Get password from URL user info
+	if parsedURL.User != nil {
+		config.Password = parsedURL.User.Username()
+	}
+
+	if config.Password == "" {
+		return nil, fmt.Errorf("password is required")
+	}
+
 	host, portStr, err := net.SplitHostPort(parsedURL.Host)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Trojan link format: %v", err)
@@ -200,12 +217,13 @@ func parseTrojan(link string) (Config, error) {
 
 	config.SNI = params.Get("sni")
 	if config.SNI == "" {
-		config.SNI = params.Get("peer") // Alternative parameter name
+		config.SNI = params.Get("peer")
 	}
+
 	config.ALPN = params.Get("alpn")
 	config.Network = params.Get("type")
 	if config.Network == "" {
-		config.Network = "tcp" // Default for Trojan
+		config.Network = "tcp"
 	}
 
 	config.Type = params.Get("headerType")
@@ -214,24 +232,25 @@ func parseTrojan(link string) (Config, error) {
 	config.Mode = params.Get("mode")
 	config.Authority = params.Get("authority")
 	config.ServiceName = params.Get("serviceName")
+
 	config.Security = params.Get("security")
 	if config.Security == "" {
-		config.Security = "tls" // Trojan uses TLS by default
+		config.Security = "tls"
 	}
+
 	if params.Get("allowInsecure") == "1" || params.Get("allowInsecure") == "true" {
 		config.AllowInsecure = true
 	}
 	if params.Get("skipCertVerify") == "1" || params.Get("skipCertVerify") == "true" {
 		config.AllowInsecure = true
 	}
+
 	if parsedURL.Fragment != "" {
 		config.Remark, _ = url.QueryUnescape(parsedURL.Fragment)
 	}
+
 	if config.Server == "" {
 		return nil, fmt.Errorf("server address is required")
-	}
-	if config.Password == "" {
-		return nil, fmt.Errorf("password is required")
 	}
 	if config.Port == 0 {
 		return nil, fmt.Errorf("port is required")

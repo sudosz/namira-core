@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/url"
 	"strconv"
 	"strings"
 )
@@ -44,43 +45,66 @@ func (c *ssConfig) MarshalJSON() ([]byte, error) {
 }
 
 func parseSS(link string) (Config, error) {
-	parts := strings.Split(link, "://")
-	if len(parts) != 2 {
+	if !strings.HasPrefix(link, "ss://") {
 		return nil, fmt.Errorf("invalid ShadowSocks link format")
 	}
 
-	config := &ssConfig{Remark: parts[0]}
-	data := strings.Split(parts[1], "@")
-	if len(data) != 2 {
+	// Remove ss:// prefix
+	link = strings.TrimPrefix(link, "ss://")
+
+	config := &ssConfig{Raw: link}
+
+	// Handle remark (fragment)
+	parts := strings.Split(link, "#")
+	if len(parts) == 2 {
+		config.Remark, _ = url.QueryUnescape(parts[1])
+		link = parts[0]
+	}
+
+	// Split by @ to separate auth and server info
+	atIndex := strings.LastIndex(link, "@")
+	if atIndex == -1 {
 		return nil, fmt.Errorf("invalid ShadowSocks link format")
 	}
 
-	authData, err := base64.RawStdEncoding.DecodeString(data[0])
+	authPart := link[:atIndex]
+	serverPart := link[atIndex+1:]
+
+	// Decode auth part (method:password)
+	authData, err := base64.StdEncoding.DecodeString(authPart)
 	if err != nil {
-		return nil, fmt.Errorf("invalid ShadowSocks link format")
+		// Try URL-safe base64
+		authData, err = base64.URLEncoding.DecodeString(authPart)
+		if err != nil {
+			// Try raw standard encoding
+			authData, err = base64.RawStdEncoding.DecodeString(authPart)
+			if err != nil {
+				// Try raw URL encoding
+				authData, err = base64.RawURLEncoding.DecodeString(authPart)
+				if err != nil {
+					return nil, fmt.Errorf("invalid ShadowSocks link format: failed to decode auth")
+				}
+			}
+		}
 	}
 
 	auth := strings.Split(string(authData), ":")
 	if len(auth) != 2 {
-		return nil, fmt.Errorf("invalid ShadowSocks link format")
+		return nil, fmt.Errorf("invalid ShadowSocks link format: invalid auth format")
 	}
 	config.Method = auth[0]
 	config.Password = auth[1]
 
-	serverParts := strings.Split(data[1], "#")
-	if len(serverParts) == 2 {
-		config.Remark = serverParts[1]
-	}
-
-	host, port, err := net.SplitHostPort(serverParts[0])
+	// Parse server and port
+	host, portStr, err := net.SplitHostPort(serverPart)
 	if err != nil {
-		return nil, fmt.Errorf("invalid ShadowSocks link format")
+		return nil, fmt.Errorf("invalid ShadowSocks link format: invalid server format")
 	}
 
 	config.Server = host
-	config.Port, err = strconv.Atoi(port)
+	config.Port, err = strconv.Atoi(portStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid ShadowSocks link format")
+		return nil, fmt.Errorf("invalid ShadowSocks link format: invalid port")
 	}
 
 	return config, nil
