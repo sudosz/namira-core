@@ -1,8 +1,8 @@
 package api
 
-//TODO: implement test and health API handlers
+//TODO: implement check and health API handlers
 
-// route: /test
+// route: /check
 // params: file
 // return: nothing
 

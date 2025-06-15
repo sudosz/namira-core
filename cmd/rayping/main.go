@@ -16,8 +16,8 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "rayping",
-	Short: "RayPing VPN Link Tester Service",
-	Long:  `A service to test and validate various VPN protocol links including Vmess, Vless, Shadowsocks, and Trojan.`,
+	Short: "RayPing VPN Link Checker Service",
+	Long:  `A service to check and validate various VPN protocol links including Vmess, Vless, Shadowsocks, and Trojan.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Hello, RayPing!")
 	},

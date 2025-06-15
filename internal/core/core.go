@@ -5,62 +5,63 @@ import (
 	"sync"
 	"time"
 
-	"github.com/NaMiraNet/rayping/internal/core/parser"
-	"github.com/NaMiraNet/rayping/internal/core/tester"
 	"slices"
+
+	"github.com/NaMiraNet/rayping/internal/core/checker"
+	"github.com/NaMiraNet/rayping/internal/core/parser"
 )
 
-type TestResultStatusType string
+type CheckResultStatusType string
 
 const (
-	TestResultStatusSuccess     TestResultStatusType = "success"
-	TestResultStatusUnavailable TestResultStatusType = "unavailable"
-	TestResultStatusError       TestResultStatusType = "error"
+	CheckResultStatusSuccess     CheckResultStatusType = "success"
+	CheckResultStatusUnavailable CheckResultStatusType = "unavailable"
+	CheckResultStatusError       CheckResultStatusType = "error"
 )
 
 type Config interface {
 	MarshalJSON() ([]byte, error)
 }
 
-type TestResult struct {
-	Status    TestResultStatusType
+type CheckResult struct {
+	Status    CheckResultStatusType
 	RealDelay time.Duration
 	Error     error
 }
 
 type Core struct {
-	tester             tester.ConfigTester
-	parser             *parser.Parser
-	maxConcurrentTests int
+	checker             checker.ConfigChecker
+	parser              *parser.Parser
+	maxConcurrentChecks int
 }
 
 type CoreOpts struct {
-	TestTimeout       time.Duration
-	TestServer        string
-	TestPort          uint32
-	TestMaxConcurrent int
+	CheckTimeout       time.Duration
+	CheckServer        string
+	CheckPort          uint32
+	CheckMaxConcurrent int
 }
 
 func NewCore(opts ...CoreOpts) *Core {
 	if len(opts) == 0 {
 		opts = append(opts, CoreOpts{
-			TestTimeout:       10 * time.Second,
-			TestServer:        "1.1.1.1",
-			TestPort:          80,
-			TestMaxConcurrent: 10,
+			CheckTimeout:       10 * time.Second,
+			CheckServer:        "1.1.1.1",
+			CheckPort:          80,
+			CheckMaxConcurrent: 10,
 		})
 	}
 	return &Core{
-		tester:             tester.NewV2RayConfigTester(opts[0].TestTimeout, opts[0].TestServer, opts[0].TestPort),
-		parser:             parser.NewParser(),
-		maxConcurrentTests: opts[0].TestMaxConcurrent,
+		checker:             checker.NewV2RayConfigChecker(opts[0].CheckTimeout, opts[0].CheckServer, opts[0].CheckPort),
+		parser:              parser.NewParser(),
+		maxConcurrentChecks: opts[0].CheckMaxConcurrent,
 	}
 }
 
-func (c *Core) TestConfigs(configs []string) <-chan TestResult {
-	results := make(chan TestResult)
+func (c *Core) CheckConfigs(configs []string) <-chan CheckResult {
+	results := make(chan CheckResult)
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, c.maxConcurrentTests)
+	sem := make(chan struct{}, c.maxConcurrentChecks)
 	go func() {
 		for i, config := range configs {
 			wg.Add(1)
@@ -69,21 +70,21 @@ func (c *Core) TestConfigs(configs []string) <-chan TestResult {
 				defer wg.Done()
 				defer func() { <-sem }() // Release semaphore
 
-				result := TestResult{
-					Status: TestResultStatusSuccess,
+				result := CheckResult{
+					Status: CheckResultStatusSuccess,
 				}
 
 				parsed, err := c.parser.Parse(cfg)
 				if err != nil {
-					result.Status = TestResultStatusError
+					result.Status = CheckResultStatusError
 					result.Error = err
 					results <- result
 					return
 				}
 
-				delay, err := c.tester.TestConfig(parsed)
+				delay, err := c.checker.CheckConfig(parsed)
 				if err != nil {
-					result.Status = TestResultStatusError
+					result.Status = CheckResultStatusError
 					result.Error = err
 				} else {
 					result.RealDelay = delay
@@ -98,19 +99,19 @@ func (c *Core) TestConfigs(configs []string) <-chan TestResult {
 	return results
 }
 
-func (c *Core) TestConfigsList(configs []string) []TestResult {
-	results := make([]TestResult, 0)
-	for result := range c.TestConfigs(configs) {
+func (c *Core) CheckConfigsList(configs []string) []CheckResult {
+	results := make([]CheckResult, 0)
+	for result := range c.CheckConfigs(configs) {
 		results = append(results, result)
 	}
 	return results
 }
 
-func (c *Core) SortTestResultList(results []TestResult) []TestResult {
+func (c *Core) SortCheckResultList(results []CheckResult) []CheckResult {
 	results = slices.Clone(results)
 	sort.Slice(results, func(i, j int) bool {
 		if results[i].Status != results[j].Status {
-			return results[i].Status == TestResultStatusSuccess
+			return results[i].Status == CheckResultStatusSuccess
 		}
 		return results[i].RealDelay < results[j].RealDelay
 	})

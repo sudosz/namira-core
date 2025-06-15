@@ -1,4 +1,4 @@
-package tester
+package checker
 
 import (
 	"bytes"
@@ -26,17 +26,17 @@ type Config interface {
 	MarshalJSON() ([]byte, error)
 }
 
-type ConfigTester interface {
-	TestConfig(config Config) (time.Duration, error)
+type ConfigChecker interface {
+	CheckConfig(config Config) (time.Duration, error)
 }
 
-type V2RayConfigTester struct {
-	timeout    time.Duration
-	testServer string
-	testPort   v2net.Port
+type V2RayConfigChecker struct {
+	timeout     time.Duration
+	checkServer string
+	checkPort   v2net.Port
 }
 
-func NewV2RayConfigTester(timeout time.Duration, server string, port uint32) *V2RayConfigTester {
+func NewV2RayConfigChecker(timeout time.Duration, server string, port uint32) *V2RayConfigChecker {
 	if timeout <= 0 {
 		timeout = 10 * time.Second
 	}
@@ -46,10 +46,10 @@ func NewV2RayConfigTester(timeout time.Duration, server string, port uint32) *V2
 	if port == 0 {
 		port = 80
 	}
-	return &V2RayConfigTester{
-		timeout:    timeout,
-		testServer: server,
-		testPort:   v2net.Port(port),
+	return &V2RayConfigChecker{
+		timeout:     timeout,
+		checkServer: server,
+		checkPort:   v2net.Port(port),
 	}
 }
 
@@ -98,7 +98,7 @@ func createInstanceConfig(outbound []byte) ([]byte, error) {
 	return json.Marshal(config)
 }
 
-func (t *V2RayConfigTester) TestConfig(config Config) (time.Duration, error) {
+func (t *V2RayConfigChecker) CheckConfig(config Config) (time.Duration, error) {
 	jsonConfig, err := config.MarshalJSON()
 	if err != nil {
 		return 0, fmt.Errorf("failed to marshal config: %w", err)
@@ -129,8 +129,8 @@ func (t *V2RayConfigTester) TestConfig(config Config) (time.Duration, error) {
 
 	dest := v2net.Destination{
 		Network: v2net.Network_TCP,
-		Address: v2net.ParseAddress(t.testServer),
-		Port:    t.testPort,
+		Address: v2net.ParseAddress(t.checkServer),
+		Port:    t.checkPort,
 	}
 
 	start := time.Now()
