@@ -1,5 +1,7 @@
 package parser
 
+// TODO: Implement the core parser for the RayPing service that will parse the config links and provide an interface for the core tester
+
 import (
 	"fmt"
 	"strings"

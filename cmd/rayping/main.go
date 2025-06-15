@@ -1,10 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"time"
 
-	"github.com/NaMiraNet/rayping/internal/service"
 	"github.com/spf13/cobra"
 )
 
@@ -19,10 +19,7 @@ var rootCmd = &cobra.Command{
 	Short: "RayPing VPN Link Tester Service",
 	Long:  `A service to test and validate various VPN protocol links including Vmess, Vless, Shadowsocks, and Trojan.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		srv := service.NewRayPingService(timeout, maxConcurrent)
-		if err := srv.StartServer(port); err != nil {
-			log.Fatal("Failed to start server:", err)
-		}
+		fmt.Println("Hello, RayPing!")
 	},
 }
 
