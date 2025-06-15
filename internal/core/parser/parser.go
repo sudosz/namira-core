@@ -28,14 +28,13 @@ type Parser struct {
 	parsers map[string]ConfigParser
 }
 
-// TODO: Implement the parsers for VLESS, VMess, Trojan, and other protocols.
 func NewParser() *Parser {
 	return &Parser{
 		parsers: map[string]ConfigParser{
-			"ss": parseSS,
-			// "vless":  parseVless,
-			// "vmess":  parseVmess,
-			// "trojan": parseTrojan,
+			"ss":     parseSS,
+			"vless":  parseVless,
+			"vmess":  parseVMess,
+			"trojan": parseTrojan,
 		},
 	}
 }
