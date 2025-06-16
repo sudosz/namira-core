@@ -35,6 +35,7 @@ type CheckResult struct {
 type Core struct {
 	checker             checker.ConfigChecker
 	parser              *parser.Parser
+	remarkTemplate      RemarkTemplate
 	maxConcurrentChecks int
 }
 
@@ -43,6 +44,7 @@ type CoreOpts struct {
 	CheckServer        string
 	CheckPort          uint32
 	CheckMaxConcurrent int
+	RemarkTemplate     *RemarkTemplate
 }
 
 func NewCore(opts ...CoreOpts) *Core {
@@ -54,10 +56,17 @@ func NewCore(opts ...CoreOpts) *Core {
 			CheckMaxConcurrent: 10,
 		})
 	}
+
+	remarkTemplate := DefaultRemarkTemplate()
+	if opts[0].RemarkTemplate != nil {
+		remarkTemplate = *opts[0].RemarkTemplate
+	}
+
 	return &Core{
 		checker:             checker.NewV2RayConfigChecker(opts[0].CheckTimeout, opts[0].CheckServer, opts[0].CheckPort),
 		parser:              parser.NewParser(),
 		maxConcurrentChecks: opts[0].CheckMaxConcurrent,
+		remarkTemplate:      remarkTemplate,
 	}
 }
 
@@ -93,6 +102,8 @@ func (c *Core) CheckConfigs(configs []string) <-chan CheckResult {
 					result.Status = CheckResultStatusError
 					result.Error = err
 				} else {
+					processedConfig := c.ReplaceConfigRemark(cfg)
+					result.Raw = processedConfig
 					result.Protocol = strings.ToLower(strings.SplitN(cfg, "://", 2)[0])
 					result.RealDelay = delay
 				}

@@ -3,13 +3,13 @@ module github.com/NaMiraNet/rayping
 go 1.24.4
 
 require (
+	github.com/enescakir/emoji v1.0.0
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/go-github/v45 v45.2.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/xtls/xray-core v1.250608.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/oauth2 v0.28.0
 )
 
 require (
