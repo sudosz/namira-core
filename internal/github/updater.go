@@ -20,12 +20,12 @@ import (
 )
 
 const (
-	FILENAME     = "results.txt"
-	CLONE_DEPTH  = 1
-	FILE_PERMS   = 0644
-	BOT_NAME     = "RayPing Bot"
-	BOT_EMAIL    = "namiranet@proton.me"
-	REMOTE_NAME  = "origin"
+	FILENAME    = "results.txt"
+	CLONE_DEPTH = 1
+	FILE_PERMS  = 0644
+	BOT_NAME    = "RayPing Bot"
+	BOT_EMAIL   = "namiranet@proton.me"
+	REMOTE_NAME = "origin"
 )
 
 type Updater struct {
@@ -33,6 +33,7 @@ type Updater struct {
 	redisClient   *redis.Client
 	repoOwner     string
 	repoName      string
+	repoURL       string
 	encryptionKey []byte
 	logger        *zap.Logger
 	workDir       string
@@ -80,6 +81,7 @@ func NewUpdater(sshKeyPath string, redisClient *redis.Client, repoOwner, repoNam
 		redisClient:   redisClient,
 		repoOwner:     repoOwner,
 		repoName:      repoName,
+		repoURL:       fmt.Sprintf("git@github.com:%s/%s.git", repoOwner, repoName),
 		encryptionKey: encryptionKey,
 		logger:        log,
 		workDir:       fmt.Sprintf("/tmp/rayping-updater-%s-%s", repoOwner, repoName),
@@ -92,7 +94,7 @@ func (u *Updater) HealthCheck() error {
 	defer os.RemoveAll(tempDir)
 
 	_, err := git.PlainClone(tempDir, false, &git.CloneOptions{
-		URL:   fmt.Sprintf("git@github.com:%s/%s.git", u.repoOwner, u.repoName),
+		URL:   u.repoURL,
 		Auth:  u.auth,
 		Depth: CLONE_DEPTH,
 	})
@@ -155,7 +157,7 @@ func (u *Updater) updateFileViaGit(jobID string, content []byte) error {
 	defer os.RemoveAll(u.workDir)
 
 	repo, err := git.PlainClone(u.workDir, false, &git.CloneOptions{
-		URL:   fmt.Sprintf("git@github.com:%s/%s.git", u.repoOwner, u.repoName),
+		URL:   u.repoURL,
 		Auth:  u.auth,
 		Depth: CLONE_DEPTH,
 	})
@@ -202,13 +204,13 @@ func (u *Updater) updateFileViaGit(jobID string, content []byte) error {
 func formatResultsJSON(scanResult ScanResult) string {
 	results := make([]JSONConfigResult, len(scanResult.Results))
 	for i, result := range scanResult.Results {
-		results[i] = JSONConfigResult{
-			Index:     i + 1,
-			Status:    string(result.Status),
-			Delay:     result.RealDelay.Milliseconds(),
-			Protocol:  result.Protocol,
-			RawConfig: result.Raw,
-			Error:     result.Error,
+		if result.Status == core.CheckResultStatusSuccess {
+			results[i] = JSONConfigResult{
+				Status:    string(result.Status),
+				Delay:     result.RealDelay.Milliseconds(),
+				Protocol:  result.Protocol,
+				RawConfig: result.Raw,
+			}
 		}
 	}
 
