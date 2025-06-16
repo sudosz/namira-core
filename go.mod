@@ -6,9 +6,13 @@ require (
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
-	github.com/spf13/cobra v1.9.1
 	github.com/xtls/xray-core v1.250608.0
 	go.uber.org/zap v1.27.0
+)
+
+require (
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/spf13/pflag v1.0.6 // indirect
 )
 
 require (
@@ -22,7 +26,6 @@ require (
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/pprof v0.0.0-20240528025155-186aa0362fba // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
-	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/juju/ratelimit v1.0.2 // indirect
 	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
@@ -36,7 +39,7 @@ require (
 	github.com/sagernet/sing v0.5.1 // indirect
 	github.com/sagernet/sing-shadowsocks v0.2.7 // indirect
 	github.com/seiflotfy/cuckoofilter v0.0.0-20240715131351-a2f2c23f1771 // indirect
-	github.com/spf13/pflag v1.0.6 // indirect
+	github.com/spf13/cobra v1.9.1
 	github.com/v2fly/ss-bloomring v0.0.0-20210312155135-28617310f63e // indirect
 	github.com/vishvananda/netlink v1.3.1 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
