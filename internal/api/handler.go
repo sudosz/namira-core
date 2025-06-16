@@ -164,7 +164,6 @@ func (h *Handler) executeCheckTask(ctx context.Context, data interface{}) (inter
 	i := 0
 	for result := range h.core.CheckConfigs(taskData.Configs) {
 		results = append(results, result)
-		status := "error"
 		checkResult := CheckResult{
 			Index:  i,
 			Status: string(result.Status),
@@ -172,9 +171,7 @@ func (h *Handler) executeCheckTask(ctx context.Context, data interface{}) (inter
 		}
 
 		if result.Error != nil {
-			checkResult.Error = result.Error.Error()
 			h.logger.Error("Error in check", zap.String("error", result.Error.Error()))
-			job.AddResult(status, checkResult)
 		} else {
 			h.logger.Info("Check result", zap.String("config", result.Raw))
 			job.AddResult(HashConfig(result.Raw), checkResult)
