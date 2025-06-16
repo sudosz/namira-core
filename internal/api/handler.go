@@ -1,10 +1,12 @@
 package api
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -55,20 +57,49 @@ func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler Callbac
 }
 
 func (h *Handler) handleScan(w http.ResponseWriter, r *http.Request) {
-	var req ScanRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("Invalid Json", zap.Error(err))
-		writeError(w, "Invalid JSON", http.StatusBadRequest)
-		return
+	var configs []string
+
+	// Check content type
+	contentType := r.Header.Get("Content-Type")
+	if strings.Contains(contentType, "multipart/form-data") {
+		file, _, err := r.FormFile("file")
+		if err != nil {
+			h.logger.Error("Failed to read file", zap.Error(err))
+			writeError(w, "Failed to read file", http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line != "" {
+				configs = append(configs, line)
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			h.logger.Error("Failed to read file content", zap.Error(err))
+			writeError(w, "Failed to read file content", http.StatusBadRequest)
+			return
+		}
+	} else {
+		// Handle JSON request
+		var req ScanRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			h.logger.Error("Invalid Json", zap.Error(err))
+			writeError(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+		configs = req.Configs
 	}
 
-	if len(req.Configs) == 0 {
+	if len(configs) == 0 {
 		h.logger.Error("No configs provided")
 		writeError(w, "No configs provided", http.StatusBadRequest)
 		return
 	}
 
-	uniqueConfigs, err := h.filterDuplicates(req.Configs)
+	uniqueConfigs, err := h.filterDuplicates(configs)
 	if err != nil {
 		h.logger.Error("Failed to filter duplicates", zap.Error(err))
 		writeError(w, "Failed to filter duplicates", http.StatusInternalServerError)
