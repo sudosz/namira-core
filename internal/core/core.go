@@ -25,6 +25,7 @@ type Config interface {
 
 type CheckResult struct {
 	Status    CheckResultStatusType
+	Raw       string
 	RealDelay time.Duration
 	Error     error
 }
@@ -72,6 +73,7 @@ func (c *Core) CheckConfigs(configs []string) <-chan CheckResult {
 
 				result := CheckResult{
 					Status: CheckResultStatusSuccess,
+					Raw:    cfg,
 				}
 
 				parsed, err := c.parser.Parse(cfg)

@@ -3,14 +3,20 @@ module github.com/NaMiraNet/rayping
 go 1.24.4
 
 require (
+	github.com/go-redis/redis/v8 v8.11.5
+	github.com/google/uuid v1.6.0
+	github.com/gorilla/mux v1.8.1
 	github.com/spf13/cobra v1.9.1
 	github.com/xtls/xray-core v1.250608.0
+	go.uber.org/zap v1.27.0
 )
 
 require (
 	github.com/andybalholm/brotli v1.1.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/dgryski/go-metro v0.0.0-20211217172704-adc40b04c140 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/ghodss/yaml v1.0.1-0.20220118164431-d8423dcdf344 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/google/btree v1.1.2 // indirect
@@ -36,6 +42,7 @@ require (
 	github.com/vishvananda/netns v0.0.5 // indirect
 	github.com/xtls/reality v0.0.0-20250608132114-50752aec6bfb // indirect
 	go.uber.org/mock v0.5.0 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	golang.org/x/crypto v0.39.0 // indirect
 	golang.org/x/mod v0.25.0 // indirect
