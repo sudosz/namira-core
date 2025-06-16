@@ -170,8 +170,8 @@ func (h *Handler) executeCheckTask(ctx context.Context, data interface{}) (inter
 			Delay:  result.RealDelay.Milliseconds(),
 		}
 
-		if result.Error != nil {
-			h.logger.Error("Error in check", zap.String("error", result.Error.Error()))
+		if result.Error != "" {
+			h.logger.Error("Error in check", zap.String("error", result.Error))
 		} else {
 			h.logger.Info("Check result", zap.String("config", result.Raw))
 			job.AddResult(HashConfig(result.Raw), checkResult)

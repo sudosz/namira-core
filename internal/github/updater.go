@@ -163,8 +163,8 @@ func formatResultsJSON(scanResult ScanResult) string {
 			Protocol:  result.Protocol,
 			RawConfig: result.Raw,
 		}
-		if result.Error != nil {
-			jsonResult.Results[i].Error = result.Error.Error()
+		if result.Error != "" {
+			jsonResult.Results[i].Error = result.Error
 		}
 	}
 

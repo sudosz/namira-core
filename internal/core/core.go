@@ -29,7 +29,7 @@ type CheckResult struct {
 	Protocol  string
 	Raw       string
 	RealDelay time.Duration
-	Error     error
+	Error     string
 }
 
 type Core struct {
@@ -92,7 +92,7 @@ func (c *Core) CheckConfigs(configs []string) <-chan CheckResult {
 
 				if err != nil {
 					result.Status = CheckResultStatusError
-					result.Error = err
+					result.Error = err.Error()
 					results <- result
 					return
 				}
@@ -100,7 +100,7 @@ func (c *Core) CheckConfigs(configs []string) <-chan CheckResult {
 				delay, err := c.checker.CheckConfig(parsed)
 				if err != nil {
 					result.Status = CheckResultStatusError
-					result.Error = err
+					result.Error = err.Error()
 				} else {
 					processedConfig := c.ReplaceConfigRemark(cfg)
 					result.Raw = processedConfig
