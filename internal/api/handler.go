@@ -3,11 +3,13 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/NaMiraNet/rayping/internal/core"
+	"github.com/NaMiraNet/rayping/internal/github"
 	workerpool "github.com/NaMiraNet/rayping/internal/worker"
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
@@ -28,9 +30,10 @@ type Handler struct {
 	redis      *redis.Client
 	jobs       sync.Map
 	logger     *zap.Logger
+	updater    *github.Updater
 }
 
-func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, logger *zap.Logger) *Handler {
+func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, logger *zap.Logger, updater *github.Updater) *Handler {
 	pool := workerpool.NewWorkerPool(workerpool.WorkerPoolConfig{
 		WorkerCount:   5,
 		TaskQueueSize: 100,
@@ -41,6 +44,7 @@ func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler Callbac
 		workerPool: pool,
 		redis:      redisClient,
 		logger:     logger,
+		updater:    updater,
 	}
 
 	pool.SetResultHandler(handler.handleTaskResult(callbackHandler))
@@ -161,7 +165,35 @@ func (h *Handler) executeCheckTask(ctx context.Context, data interface{}) (inter
 func (h *Handler) handleTaskResult(callback CallbackHandler) func(workerpool.Result) {
 	return func(result workerpool.Result) {
 		if result.Error == nil {
-			callback(result.Result.(CallbackHandlerResult))
+			callbackResult := result.Result.(CallbackHandlerResult)
+
+			// Store results in Redis
+			scanResult := github.ScanResult{
+				JobID:     callbackResult.JobID,
+				Results:   callbackResult.Results,
+				Timestamp: time.Now(),
+			}
+
+			resultsData, err := json.Marshal(scanResult)
+			if err != nil {
+				h.logger.Error("Failed to marshal scan results", zap.Error(err))
+				return
+			}
+
+			ctx := context.Background()
+			resultsKey := fmt.Sprintf("scan_results:%s", callbackResult.JobID)
+			if err := h.redis.Set(ctx, resultsKey, resultsData, 24*time.Hour).Err(); err != nil {
+				h.logger.Error("Failed to store results in Redis", zap.Error(err))
+				return
+			}
+
+			// Trigger GitHub update
+			if err := h.updater.ProcessScanResults(callbackResult.JobID); err != nil {
+				h.logger.Error("Failed to process scan results", zap.Error(err))
+				return
+			}
+
+			callback(callbackResult)
 		}
 	}
 }

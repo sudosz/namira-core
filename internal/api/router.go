@@ -4,15 +4,16 @@ import (
 	"net/http"
 
 	"github.com/NaMiraNet/rayping/internal/core"
+	"github.com/NaMiraNet/rayping/internal/github"
 	"github.com/NaMiraNet/rayping/internal/logger"
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
 
-func NewRouter(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, logger *zap.Logger) *mux.Router {
+func NewRouter(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, logger *zap.Logger, updater *github.Updater) *mux.Router {
 	r := mux.NewRouter()
-	h := NewHandler(c, redisClient, callbackHandler, logger)
+	h := NewHandler(c, redisClient, callbackHandler, logger, updater)
 
 	r.Use(corsMiddleware, loggingMiddleware)
 

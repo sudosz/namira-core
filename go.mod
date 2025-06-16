@@ -4,13 +4,16 @@ go 1.24.4
 
 require (
 	github.com/go-redis/redis/v8 v8.11.5
+	github.com/google/go-github/v45 v45.2.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/xtls/xray-core v1.250608.0
 	go.uber.org/zap v1.27.0
+	golang.org/x/oauth2 v0.28.0
 )
 
 require (
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
 )

@@ -11,6 +11,7 @@ type Config struct {
 	Server ServerConfig
 	Redis  RedisConfig
 	App    AppConfig
+	Github GithubConfig
 }
 
 type ServerConfig struct {
@@ -27,10 +28,17 @@ type RedisConfig struct {
 	DB       int
 }
 
+type GithubConfig struct {
+	Token string
+	Owner string
+	Repo  string
+}
+
 type AppConfig struct {
 	LogLevel      string
 	Timeout       time.Duration
 	MaxConcurrent int
+	EncryptionKey string
 }
 
 // Load loads configuration from environment variables with defaults value
@@ -48,10 +56,16 @@ func Load() *Config {
 			Password: getEnv("REDIS_PASSWORD", ""),
 			DB:       getEnvInt("REDIS_DB", 0),
 		},
+		Github: GithubConfig{
+			Token: getEnv("GITHUB_TOKEN", ""),
+			Owner: getEnv("GITHUB_OWNER", ""),
+			Repo:  getEnv("GITHUB_REPO", ""),
+		},
 		App: AppConfig{
 			LogLevel:      getEnv("LOG_LEVEL", "info"),
 			Timeout:       getEnvDuration("APP_TIMEOUT", 10*time.Second),
 			MaxConcurrent: getEnvInt("MAX_CONCURRENT", 50),
+			EncryptionKey: getEnv("ENCRYPTION_KEY", ""),
 		},
 	}
 }

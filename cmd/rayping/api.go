@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,7 +13,6 @@ import (
 	"github.com/NaMiraNet/rayping/internal/api"
 	"github.com/NaMiraNet/rayping/internal/core"
 	"github.com/NaMiraNet/rayping/internal/logger"
-	"github.com/go-redis/redis/v8"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -32,17 +31,6 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 		serverPort = cfg.Server.Port
 	}
 
-	logger, err := logger.Init(cfg.App.LogLevel)
-	if err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
-	}
-
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     cfg.Redis.Addr,
-		Password: cfg.Redis.Password,
-		DB:       cfg.Redis.DB,
-	})
-
 	ctx := context.Background()
 	if err := redisClient.Ping(ctx).Err(); err != nil {
 		logger.Fatal("Failed to connect to Redis", zap.Error(err))
@@ -60,7 +48,12 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	router := api.NewRouter(coreInstance, redisClient, callbackHandler, logger)
+	router := api.NewRouter(
+		coreInstance,
+		redisClient,
+		callbackHandler,
+		appLogger,
+		updater)
 
 	serverAddr := fmt.Sprintf("%s:%s", cfg.Server.Host, serverPort)
 	server := &http.Server{

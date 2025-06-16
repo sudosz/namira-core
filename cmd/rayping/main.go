@@ -8,7 +8,11 @@ import (
 	"time"
 
 	"github.com/NaMiraNet/rayping/internal/config"
+	"github.com/NaMiraNet/rayping/internal/github"
+	"github.com/NaMiraNet/rayping/internal/logger"
+	"github.com/go-redis/redis/v8"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 var (
@@ -30,10 +34,14 @@ func VersionStatement() string {
 }
 
 var (
-	cfg           *config.Config
 	port          string
 	timeout       time.Duration
 	maxConcurrent int
+
+	cfg         *config.Config
+	updater     *github.Updater
+	redisClient *redis.Client
+	appLogger   *zap.Logger
 )
 
 var rootCmd = &cobra.Command{
@@ -47,6 +55,34 @@ func init() {
 
 	// Load configuration from environment variables
 	cfg = config.Load()
+
+	// Initialize logger
+	var err error
+	appLogger, err = logger.Init(cfg.App.LogLevel)
+	if err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+
+	// Initialize Redis client
+	redisClient = redis.NewClient(&redis.Options{
+		Addr:     cfg.Redis.Addr,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	})
+
+	// Initialize GitHub updater
+	encryptionKey := []byte(cfg.App.EncryptionKey)
+	updater, err = github.NewUpdater(
+		cfg.Github.Token,
+		redisClient,
+		cfg.Github.Owner,
+		cfg.Github.Repo,
+		encryptionKey,
+	)
+	if err != nil {
+		appLogger.Fatal("Failed to create updater:", zap.Error(err))
+	}
+	appLogger.Info("loaded github updater")
 
 	rootCmd.PersistentFlags().StringVarP(&port, "port", "p", cfg.Server.Port, "Port to run the service on")
 	rootCmd.PersistentFlags().DurationVarP(&timeout, "timeout", "t", cfg.App.Timeout, "Connection timeout")
