@@ -29,9 +29,9 @@ type RedisConfig struct {
 }
 
 type GithubConfig struct {
-	Token string
-	Owner string
-	Repo  string
+	SSHKeyPath string
+	Owner      string
+	Repo       string
 }
 
 type AppConfig struct {
@@ -57,9 +57,9 @@ func Load() *Config {
 			DB:       getEnvInt("REDIS_DB", 0),
 		},
 		Github: GithubConfig{
-			Token: getEnv("GITHUB_TOKEN", ""),
-			Owner: getEnv("GITHUB_OWNER", ""),
-			Repo:  getEnv("GITHUB_REPO", ""),
+			SSHKeyPath: getEnv("GITHUB_SSH_KEY_PATH", ""),
+			Owner:      getEnv("GITHUB_OWNER", ""),
+			Repo:       getEnv("GITHUB_REPO", ""),
 		},
 		App: AppConfig{
 			LogLevel:      getEnv("LOG_LEVEL", "info"),

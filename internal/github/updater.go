@@ -7,26 +7,35 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/NaMiraNet/rayping/internal/core"
 	"github.com/NaMiraNet/rayping/internal/crypto"
 	"github.com/NaMiraNet/rayping/internal/logger"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-redis/redis/v8"
-	"github.com/google/go-github/v45/github"
 	"go.uber.org/zap"
 )
 
-const FILENAME = "results.txt"
+const (
+	FILENAME     = "results.txt"
+	CLONE_DEPTH  = 1
+	FILE_PERMS   = 0644
+	BOT_NAME     = "RayPing Bot"
+	BOT_EMAIL    = "namiranet@proton.me"
+	REMOTE_NAME  = "origin"
+)
 
 type Updater struct {
-	githubClient  *github.Client
+	auth          *ssh.PublicKeys
 	redisClient   *redis.Client
 	repoOwner     string
 	repoName      string
 	encryptionKey []byte
 	logger        *zap.Logger
+	workDir       string
 }
 
 type ScanResult struct {
@@ -50,18 +59,15 @@ type JSONConfigResult struct {
 	RawConfig string `json:"raw_config"`
 }
 
-func NewUpdater(githubToken string, redisClient *redis.Client, repoOwner, repoName string, encryptionKey []byte) (*Updater, error) {
-	ctx := context.Background()
-	ts := github.BasicAuthTransport{
-		Username: strings.TrimSpace(githubToken),
+func NewUpdater(sshKeyPath string, redisClient *redis.Client, repoOwner, repoName string, encryptionKey []byte) (*Updater, error) {
+	if _, err := os.Stat(sshKeyPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("SSH key file not found: %s", sshKeyPath)
 	}
 
-	client := github.NewClient(ts.Client())
-
-	// Verify GitHub credentials
-	_, _, err := client.Users.Get(ctx, "")
+	// Setup SSH authentication
+	auth, err := ssh.NewPublicKeysFromFile("git", sshKeyPath, "")
 	if err != nil {
-		return nil, fmt.Errorf("failed to authenticate with GitHub: %w", err)
+		return nil, fmt.Errorf("failed to load SSH key: %w", err)
 	}
 
 	log, err := logger.Get()
@@ -70,75 +76,47 @@ func NewUpdater(githubToken string, redisClient *redis.Client, repoOwner, repoNa
 	}
 
 	return &Updater{
-		githubClient:  client,
+		auth:          auth,
 		redisClient:   redisClient,
 		repoOwner:     repoOwner,
 		repoName:      repoName,
 		encryptionKey: encryptionKey,
 		logger:        log,
+		workDir:       fmt.Sprintf("/tmp/rayping-updater-%s-%s", repoOwner, repoName),
 	}, nil
 }
 
+// HealthCheck tests SSH connectivity to GitHub
+func (u *Updater) HealthCheck() error {
+	tempDir := u.workDir + "-healthcheck"
+	defer os.RemoveAll(tempDir)
+
+	_, err := git.PlainClone(tempDir, false, &git.CloneOptions{
+		URL:   fmt.Sprintf("git@github.com:%s/%s.git", u.repoOwner, u.repoName),
+		Auth:  u.auth,
+		Depth: CLONE_DEPTH,
+	})
+	if err != nil {
+		return fmt.Errorf("SSH connectivity test failed: %w", err)
+	}
+
+	u.logger.Info("SSH connectivity test passed")
+	return nil
+}
+
 func (u *Updater) ProcessScanResults(jobID string) error {
-	ctx := context.Background()
-
-	// Fetch results from Redis
-	resultsKey := fmt.Sprintf("scan_results:%s", jobID)
-	resultsData, err := u.redisClient.Get(ctx, resultsKey).Bytes()
+	resultsData, err := u.fetchResults(jobID)
 	if err != nil {
-		return fmt.Errorf("failed to fetch results from Redis: %w", err)
+		return err
 	}
 
-	var scanResult ScanResult
-	if err := json.Unmarshal(resultsData, &scanResult); err != nil {
-		return fmt.Errorf("failed to unmarshal scan results: %w", err)
-	}
-
-	// Create JSON content
-	jsonContent := formatResultsJSON(scanResult)
-
-	// Encrypt JSON content
-	encryptedJSON, err := crypto.Encrypt([]byte(jsonContent), u.encryptionKey)
+	encryptedJSON, err := u.prepareContent(resultsData)
 	if err != nil {
-		return fmt.Errorf("failed to encrypt JSON results: %w", err)
+		return err
 	}
 
-	// Create temporary file
-	tmpDir := os.TempDir()
-	jsonFile := filepath.Join(tmpDir, FILENAME)
-
-	if err := os.WriteFile(jsonFile, encryptedJSON, 0644); err != nil {
-		return fmt.Errorf("failed to write temporary JSON file: %w", err)
-	}
-	defer os.Remove(jsonFile)
-
-	// Read JSON file
-	jsonContentBytes, err := os.ReadFile(jsonFile)
-	if err != nil {
-		return fmt.Errorf("failed to read temporary JSON file: %w", err)
-	}
-
-	// Get the current file SHA if it exists
-	var currentSHA *string
-	file, _, _, err := u.githubClient.Repositories.GetContents(ctx, u.repoOwner, u.repoName, FILENAME, nil)
-	if err == nil && file != nil {
-		currentSHA = file.SHA
-	}
-
-	// Create or update the file on GitHub
-	opts := &github.RepositoryContentFileOptions{
-		Message: github.String(fmt.Sprintf("Update scan results - Job %s", jobID)),
-		Content: []byte(base64.StdEncoding.EncodeToString(jsonContentBytes)),
-		Branch:  github.String("main"),
-	}
-
-	if currentSHA != nil {
-		opts.SHA = currentSHA
-	}
-
-	_, _, err = u.githubClient.Repositories.CreateFile(ctx, u.repoOwner, u.repoName, FILENAME, opts)
-	if err != nil {
-		return fmt.Errorf("failed to update on GitHub: %w", err)
+	if err := u.updateFileViaGit(jobID, encryptedJSON); err != nil {
+		return err
 	}
 
 	u.logger.Info("Successfully updated results on GitHub",
@@ -148,24 +126,96 @@ func (u *Updater) ProcessScanResults(jobID string) error {
 	return nil
 }
 
-func formatResultsJSON(scanResult ScanResult) string {
-	jsonResult := JSONResult{
-		JobID:     scanResult.JobID,
-		Timestamp: scanResult.Timestamp,
-		Results:   make([]JSONConfigResult, len(scanResult.Results)),
+func (u *Updater) fetchResults(jobID string) ([]byte, error) {
+	resultsKey := fmt.Sprintf("scan_results:%s", jobID)
+	resultsData, err := u.redisClient.Get(context.Background(), resultsKey).Bytes()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch results from Redis: %w", err)
+	}
+	return resultsData, nil
+}
+
+func (u *Updater) prepareContent(resultsData []byte) ([]byte, error) {
+	var scanResult ScanResult
+	if err := json.Unmarshal(resultsData, &scanResult); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal scan results: %w", err)
 	}
 
+	jsonContent := formatResultsJSON(scanResult)
+	encryptedJSON, err := crypto.Encrypt([]byte(jsonContent), u.encryptionKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt JSON results: %w", err)
+	}
+
+	return encryptedJSON, nil
+}
+
+func (u *Updater) updateFileViaGit(jobID string, content []byte) error {
+	os.RemoveAll(u.workDir)
+	defer os.RemoveAll(u.workDir)
+
+	repo, err := git.PlainClone(u.workDir, false, &git.CloneOptions{
+		URL:   fmt.Sprintf("git@github.com:%s/%s.git", u.repoOwner, u.repoName),
+		Auth:  u.auth,
+		Depth: CLONE_DEPTH,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to clone repository: %w", err)
+	}
+
+	encodedContent := base64.StdEncoding.EncodeToString(content)
+	filePath := filepath.Join(u.workDir, FILENAME)
+	if err := os.WriteFile(filePath, []byte(encodedContent), FILE_PERMS); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	worktree, err := repo.Worktree()
+	if err != nil {
+		return fmt.Errorf("failed to get worktree: %w", err)
+	}
+
+	if _, err := worktree.Add(FILENAME); err != nil {
+		return fmt.Errorf("failed to add file: %w", err)
+	}
+
+	_, err = worktree.Commit(fmt.Sprintf("🤖 Update scan results - Job %s", jobID), &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  BOT_NAME,
+			Email: BOT_EMAIL,
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to commit: %w", err)
+	}
+
+	if err := repo.Push(&git.PushOptions{
+		RemoteName: REMOTE_NAME,
+		Auth:       u.auth,
+	}); err != nil {
+		return fmt.Errorf("failed to push: %w", err)
+	}
+
+	return nil
+}
+
+func formatResultsJSON(scanResult ScanResult) string {
+	results := make([]JSONConfigResult, len(scanResult.Results))
 	for i, result := range scanResult.Results {
-		jsonResult.Results[i] = JSONConfigResult{
+		results[i] = JSONConfigResult{
 			Index:     i + 1,
 			Status:    string(result.Status),
 			Delay:     result.RealDelay.Milliseconds(),
 			Protocol:  result.Protocol,
 			RawConfig: result.Raw,
+			Error:     result.Error,
 		}
-		if result.Error != "" {
-			jsonResult.Results[i].Error = result.Error
-		}
+	}
+
+	jsonResult := JSONResult{
+		JobID:     scanResult.JobID,
+		Timestamp: scanResult.Timestamp,
+		Results:   results,
 	}
 
 	jsonData, err := json.MarshalIndent(jsonResult, "", "  ")

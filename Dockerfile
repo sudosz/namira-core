@@ -1,5 +1,5 @@
 FROM golang:1.24-alpine AS builder
-
+RUN apk add --no-cache git openssh-client
 WORKDIR /app
 
 COPY go.mod go.sum ./
@@ -11,9 +11,13 @@ COPY . .
 RUN go build -o rayping ./cmd/rayping
 
 FROM alpine:latest
-
+RUN apk add --no-cache git openssh-client ca-certificates
 WORKDIR /app
 
+# Create keys directory
+RUN mkdir -p /app/keys
+
+# Copy binary
 COPY --from=builder /app/rayping .
 
 # Use a non-root user for security 

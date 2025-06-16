@@ -18,4 +18,6 @@ services:
       REDIS_PASSWORD: ""
       REDIS_DB: 0
       LOG_LEVEL: debug
+    volumes:
+      - ./keys/github_deploy_key:/app/keys/github_deploy_key:ro
     command: ["api"]
