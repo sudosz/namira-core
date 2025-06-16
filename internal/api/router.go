@@ -1,41 +1,18 @@
 package api
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/NaMiraNet/rayping/internal/core"
+	"github.com/NaMiraNet/rayping/internal/logger"
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
-var logger *zap.Logger
-
-func init() {
-	config := zap.NewProductionConfig()
-	config.EncoderConfig.TimeKey = "timestamp"
-	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	config.OutputPaths = []string{"stdout"}
-	config.ErrorOutputPaths = []string{"stderr"}
-
-	var err error
-	logger, err = config.Build(
-		zap.AddCaller(),
-		zap.AddStacktrace(zap.ErrorLevel),
-	)
-	if err != nil {
-		log.Fatal("failed to initialize logger:", err)
-	}
-	defer logger.Sync()
-
-	logger.Info("logger initialized successfully")
-}
-
-func NewRouter(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler) *mux.Router {
+func NewRouter(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, logger *zap.Logger) *mux.Router {
 	r := mux.NewRouter()
-	h := NewHandler(c, redisClient, callbackHandler)
+	h := NewHandler(c, redisClient, callbackHandler, logger)
 
 	r.Use(corsMiddleware, loggingMiddleware)
 

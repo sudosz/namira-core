@@ -11,6 +11,7 @@ import (
 	workerpool "github.com/NaMiraNet/rayping/internal/worker"
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 type CallbackHandlerResult struct {
@@ -26,9 +27,10 @@ type Handler struct {
 	workerPool *workerpool.WorkerPool
 	redis      *redis.Client
 	jobs       sync.Map
+	logger     *zap.Logger
 }
 
-func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler) *Handler {
+func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, logger *zap.Logger) *Handler {
 	pool := workerpool.NewWorkerPool(workerpool.WorkerPoolConfig{
 		WorkerCount:   5,
 		TaskQueueSize: 100,
@@ -38,6 +40,7 @@ func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler Callbac
 		core:       c,
 		workerPool: pool,
 		redis:      redisClient,
+		logger:     logger,
 	}
 
 	pool.SetResultHandler(handler.handleTaskResult(callbackHandler))
@@ -50,17 +53,20 @@ func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler Callbac
 func (h *Handler) handleScan(w http.ResponseWriter, r *http.Request) {
 	var req ScanRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Error("Invalid Json", zap.Error(err))
 		writeError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
 	if len(req.Configs) == 0 {
+		h.logger.Error("No configs provided")
 		writeError(w, "No configs provided", http.StatusBadRequest)
 		return
 	}
 
 	uniqueConfigs, err := h.filterDuplicates(req.Configs)
 	if err != nil {
+		h.logger.Error("Failed to filter duplicates", zap.Error(err))
 		writeError(w, "Failed to filter duplicates", http.StatusInternalServerError)
 		return
 	}
@@ -74,6 +80,7 @@ func (h *Handler) handleScan(w http.ResponseWriter, r *http.Request) {
 		Data:    TaskData{JobID: job.ID, Configs: uniqueConfigs},
 		Execute: h.executeCheckTask,
 	}); err != nil {
+		h.logger.Error("Failed to submit task", zap.Error(err))
 		job.Fail(err)
 		writeError(w, "Failed to submit task", http.StatusInternalServerError)
 		return
@@ -87,6 +94,7 @@ func (h *Handler) handleJobStatus(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, value.(*Job))
 		return
 	}
+	h.logger.Error("Job not found")
 	writeError(w, "Job not found", http.StatusNotFound)
 }
 
@@ -111,6 +119,7 @@ func (h *Handler) executeCheckTask(ctx context.Context, data interface{}) (inter
 	taskData := data.(TaskData)
 	value, exists := h.jobs.Load(taskData.JobID)
 	if !exists {
+		h.logger.Error("Job not found", zap.String("job_id", taskData.JobID))
 		return nil, nil
 	}
 
@@ -129,13 +138,16 @@ func (h *Handler) executeCheckTask(ctx context.Context, data interface{}) (inter
 
 		if result.Error != nil {
 			checkResult.Error = result.Error.Error()
+			h.logger.Error("Error in check", zap.String("error", result.Error.Error()))
 			job.AddResult(status, checkResult)
 		} else {
+			h.logger.Info("Check result", zap.String("config", result.Raw))
 			job.AddResult(HashConfig(result.Raw), checkResult)
 		}
 
 		if job.DoneCount >= job.TotalCount {
 			job.Complete()
+			h.logger.Info("Job completed", zap.String("job_id", taskData.JobID))
 		}
 		i++
 	}
@@ -168,6 +180,7 @@ func (h *Handler) filterDuplicates(configs []string) ([]string, error) {
 	}
 
 	if _, err := pipe.Exec(ctx); err != nil {
+		h.logger.Error("Failed to filter duplicates", zap.Error(err))
 		return nil, err
 	}
 
@@ -180,6 +193,10 @@ func (h *Handler) filterDuplicates(configs []string) ([]string, error) {
 	}
 
 	_, err := pipe.Exec(ctx)
+	if err != nil {
+		h.logger.Error("Failed to filter duplicates", zap.Error(err))
+		return nil, err
+	}
 	return uniqueConfigs, err
 }
 
