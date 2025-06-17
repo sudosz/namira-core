@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -142,22 +143,63 @@ func getCountryFromServer(server string) string {
 	}
 
 	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Get(fmt.Sprintf("https://api.country.is/%s", ip))
-	if err != nil {
-		return ""
+	apis := []struct {
+		url     string
+		handler func([]byte) string
+	}{
+		{
+			url: fmt.Sprintf("http://api.db-ip.com/v2/free/%s/countryCode", ip),
+			handler: func(body []byte) string {
+				return string(body)
+			},
+		},
+		{
+			url: fmt.Sprintf("https://ipapi.co/%s/country_code/", ip),
+			handler: func(body []byte) string {
+				return string(body)
+			},
+		},
+		{
+			url: fmt.Sprintf("https://api.iplocation.net/?ip=%s", ip),
+			handler: func(body []byte) string {
+				var result struct {
+					CountryCode2 string `json:"country_code2"`
+				}
+				if json.Unmarshal(body, &result) == nil {
+					return result.CountryCode2
+				}
+				return ""
+			},
+		},
+		{
+			url: fmt.Sprintf("https://free.freeipapi.com/api/json/%s", ip),
+			handler: func(body []byte) string {
+				var result struct {
+					CountryCode string `json:"countryCode"`
+				}
+				if json.Unmarshal(body, &result) == nil {
+					return result.CountryCode
+				}
+				return ""
+			},
+		},
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return ""
+	for _, api := range apis {
+		if resp, err := client.Get(api.url); err == nil {
+			if resp.StatusCode == http.StatusOK {
+				if body, err := io.ReadAll(resp.Body); err == nil && len(body) > 0 {
+					if code := api.handler(body); code != "" {
+						resp.Body.Close()
+						return code
+					}
+				}
+			}
+			resp.Body.Close()
+		}
 	}
 
-	var countryResp CountryResponse
-	if err := json.NewDecoder(resp.Body).Decode(&countryResp); err != nil {
-		return ""
-	}
-
-	return countryResp.Country
+	return ""
 }
 
 func extractServerFromURL(config string) string {
