@@ -106,6 +106,12 @@ func (h *Handler) handleScan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(uniqueConfigs) == 0 {
+		h.logger.Error("All configs are duplicates")
+		writeError(w, "All configs are duplicates", http.StatusBadRequest)
+		return
+	}
+
 	job := NewJob(uniqueConfigs)
 	h.jobs.Store(job.ID, job)
 	job.Start()
@@ -172,6 +178,7 @@ func (h *Handler) executeCheckTask(ctx context.Context, data interface{}) (inter
 
 		if result.Error != "" {
 			h.logger.Error("Error in check", zap.String("error", result.Error))
+			job.Done()
 		} else {
 			h.logger.Info("Check result", zap.String("config", result.Raw))
 			job.AddResult(HashConfig(result.Raw), checkResult)

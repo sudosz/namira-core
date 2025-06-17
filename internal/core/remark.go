@@ -96,7 +96,7 @@ func (c *Core) replaceVMessRemark(config string, tmpl RemarkTemplate) string {
 
 func (c *Core) replaceURLRemark(config string, tmpl RemarkTemplate, protocol string) string {
 	// Find existing remark (after #)
-	
+
 	if hashIndex := strings.LastIndex(config, "#"); hashIndex != -1 {
 		config = config[:hashIndex]
 	}

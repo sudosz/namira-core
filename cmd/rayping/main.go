@@ -82,7 +82,7 @@ func init() {
 	if err != nil {
 		appLogger.Fatal("Failed to create updater:", zap.Error(err))
 	}
-	
+
 	if err := updater.HealthCheck(); err != nil {
 		appLogger.Fatal("GitHub SSH connectivity test failed:", zap.Error(err))
 	}

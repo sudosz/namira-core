@@ -122,6 +122,12 @@ func (j *Job) Fail(err error) {
 	j.updateStatus(JobStatusFailed, err)
 }
 
+func (j *Job) Done() {
+	j.mutex.Lock()
+	j.DoneCount++
+	j.mutex.Unlock()
+}
+
 func (j *Job) AddResult(configHash string, result CheckResult) {
 	j.mutex.Lock()
 	j.Results[configHash] = result

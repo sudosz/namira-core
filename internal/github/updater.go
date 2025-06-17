@@ -52,10 +52,8 @@ type JSONResult struct {
 }
 
 type JSONConfigResult struct {
-	Index     int    `json:"index"`
 	Status    string `json:"status"`
 	Delay     int64  `json:"delay_ms"`
-	Error     string `json:"error,omitempty"`
 	Protocol  string `json:"protocol"`
 	RawConfig string `json:"raw_config"`
 }
@@ -202,15 +200,15 @@ func (u *Updater) updateFileViaGit(jobID string, content []byte) error {
 }
 
 func formatResultsJSON(scanResult ScanResult) string {
-	results := make([]JSONConfigResult, len(scanResult.Results))
-	for i, result := range scanResult.Results {
+	results := make([]JSONConfigResult, 0, len(scanResult.Results))
+	for _, result := range scanResult.Results {
 		if result.Status == core.CheckResultStatusSuccess {
-			results[i] = JSONConfigResult{
+			results = append(results, JSONConfigResult{
 				Status:    string(result.Status),
 				Delay:     result.RealDelay.Milliseconds(),
 				Protocol:  result.Protocol,
 				RawConfig: result.Raw,
-			}
+			})
 		}
 	}
 
@@ -220,7 +218,7 @@ func formatResultsJSON(scanResult ScanResult) string {
 		Results:   results,
 	}
 
-	jsonData, err := json.MarshalIndent(jsonResult, "", "  ")
+	jsonData, err := json.Marshal(jsonResult)
 	if err != nil {
 		return "{}"
 	}
