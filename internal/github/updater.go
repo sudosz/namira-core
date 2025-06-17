@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/NaMiraNet/namira-core/internal/core"
@@ -98,12 +99,7 @@ func (u *Updater) HealthCheck() error {
 		Auth:  u.auth,
 		Depth: CLONE_DEPTH,
 	})
-	if err != nil {
-		return fmt.Errorf("SSH connectivity test failed: %w", err)
-	}
-
-	u.logger.Info("SSH connectivity test passed")
-	return nil
+	return err
 }
 
 func (u *Updater) ProcessScanResults(jobID string) error {
@@ -161,19 +157,23 @@ func (u *Updater) updateFileViaGit(jobID string, current JSONResult) error {
 	filePath := filepath.Join(u.workDir, FILENAME)
 
 	if err := u.mergeExistingContent(filePath, &current); err != nil {
-		return err
+		u.logger.Warn("Failed to merge existing content.", zap.Error(err))
 	}
 
 	if err := u.writeEncryptedContent(filePath, current); err != nil {
 		return err
 	}
 
+	sort.Slice(current.Results, func(i, j int) bool {
+		return current.Results[i].Delay < current.Results[j].Delay
+	})
+
 	return u.commitAndPush(repo, jobID)
 }
 
 func (u *Updater) hashConfig(config string) string {
-	hash := sha256.Sum256([]byte(config))
-	return hex.EncodeToString(hash[:])
+	sum := sha256.Sum256([]byte(config))
+	return hex.EncodeToString(sum[:])
 }
 
 func (u *Updater) mergeExistingContent(filePath string, current *JSONResult) error {
@@ -201,13 +201,13 @@ func (u *Updater) mergeExistingContent(filePath string, current *JSONResult) err
 		return nil
 	}
 
-	currentMap := make(map[string]struct{}, len(current.Results))
+	configMap := make(map[string]struct{}, len(current.Results))
 	for _, result := range current.Results {
-		currentMap[u.hashConfig(result.RawConfig)] = struct{}{}
+		configMap[u.hashConfig(result.RawConfig)] = struct{}{}
 	}
 
 	for _, result := range existing.Results {
-		if _, exists := currentMap[u.hashConfig(result.RawConfig)]; !exists {
+		if _, exists := configMap[u.hashConfig(result.RawConfig)]; !exists {
 			current.Results = append(current.Results, result)
 		}
 	}
@@ -226,8 +226,7 @@ func (u *Updater) writeEncryptedContent(filePath string, content JSONResult) err
 		return fmt.Errorf("encrypt content: %w", err)
 	}
 
-	encoded := base64.StdEncoding.EncodeToString(encrypted)
-	return os.WriteFile(filePath, []byte(encoded), FILE_PERMS)
+	return os.WriteFile(filePath, []byte(base64.StdEncoding.EncodeToString(encrypted)), FILE_PERMS)
 }
 
 func (u *Updater) commitAndPush(repo *git.Repository, jobID string) error {
