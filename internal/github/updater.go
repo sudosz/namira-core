@@ -55,10 +55,13 @@ type JSONResult struct {
 }
 
 type JSONConfigResult struct {
-	Status    string `json:"status"`
-	Delay     int64  `json:"delay_ms"`
-	Protocol  string `json:"protocol"`
-	RawConfig string `json:"raw_config"`
+	Delay       int64  `json:"delay_ms"`
+	Status      string `json:"status"`
+	Protocol    string `json:"protocol"`
+	RawConfig   string `json:"raw_config"`
+	CountryCode string `json:"country_code"`
+	Remark      string `json:"remark"`
+	Server      string `json:"server"`
 }
 
 func NewUpdater(sshKeyPath string, redisClient *redis.Client, repoOwner, repoName string, encryptionKey []byte) (*Updater, error) {
@@ -264,10 +267,13 @@ func formatResultsJSON(scanResult ScanResult) JSONResult {
 	for _, result := range scanResult.Results {
 		if result.Status == core.CheckResultStatusSuccess {
 			results = append(results, JSONConfigResult{
-				Status:    string(result.Status),
-				Delay:     result.RealDelay.Milliseconds(),
-				Protocol:  result.Protocol,
-				RawConfig: result.Raw,
+				Status:      string(result.Status),
+				Delay:       result.RealDelay.Milliseconds(),
+				Protocol:    result.Protocol,
+				RawConfig:   result.Raw,
+				CountryCode: result.CountryCode,
+				Remark:      result.Remark,
+				Server:      result.Server,
 			})
 		}
 	}

@@ -2,7 +2,6 @@ package core
 
 import (
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -25,11 +24,14 @@ type Config interface {
 }
 
 type CheckResult struct {
-	Status    CheckResultStatusType
-	Protocol  string
-	Raw       string
-	RealDelay time.Duration
-	Error     string
+	Status      CheckResultStatusType
+	Protocol    string
+	Raw         string
+	RealDelay   time.Duration
+	Remark      string
+	Server      string
+	CountryCode string
+	Error       string
 }
 
 type Core struct {
@@ -83,9 +85,8 @@ func (c *Core) CheckConfigs(configs []string) <-chan CheckResult {
 				defer func() { <-sem }() // Release semaphore
 
 				result := CheckResult{
-					Status:   CheckResultStatusSuccess,
-					Protocol: strings.ToLower(strings.SplitN(cfg, "://", 2)[0]),
-					Raw:      cfg,
+					Status: CheckResultStatusSuccess,
+					Raw:    cfg,
 				}
 
 				parsed, err := c.parser.Parse(cfg)
@@ -102,9 +103,7 @@ func (c *Core) CheckConfigs(configs []string) <-chan CheckResult {
 					result.Status = CheckResultStatusError
 					result.Error = err.Error()
 				} else {
-					processedConfig := c.ReplaceConfigRemark(cfg)
-					result.Raw = processedConfig
-					result.Protocol = strings.ToLower(strings.SplitN(cfg, "://", 2)[0])
+					c.FillCheckResult(&result)
 					result.RealDelay = delay
 				}
 				results <- result

@@ -44,77 +44,65 @@ func DefaultRemarkTemplate() RemarkTemplate {
 	}
 }
 
-func (c *Core) ReplaceConfigRemark(config string, template ...RemarkTemplate) string {
+func (c *Core) FillCheckResult(result *CheckResult, template ...RemarkTemplate) {
 	tmpl := DefaultRemarkTemplate()
 	if len(template) > 0 {
 		tmpl = template[0]
 	}
 
-	protocol := strings.SplitN(config, "://", 2)[0]
-	if protocol == "" {
-		return config
+	parts := strings.SplitN(result.Raw, "://", 2)
+	if len(parts) != 2 {
+		return
 	}
 
-	switch protocol {
+	result.Protocol = parts[0]
+	switch result.Protocol {
 	case "vmess":
-		return c.replaceVMessRemark(config, tmpl)
+		c.fillVMessResult(result, tmpl)
 	case "vless", "trojan", "ss":
-		return c.replaceURLRemark(config, tmpl, protocol)
-	default:
-		return config
+		c.fillURLResult(result, tmpl, result.Protocol)
 	}
 }
 
-func (c *Core) replaceVMessRemark(config string, tmpl RemarkTemplate) string {
-	parts := strings.SplitN(config, "://", 2)
+func (c *Core) fillVMessResult(result *CheckResult, tmpl RemarkTemplate) {
+	parts := strings.SplitN(result.Raw, "://", 2)
 	if len(parts) != 2 {
-		return config
+		return
 	}
 
 	// Decode VMess config
 	data, err := base64Decode(parts[1])
 	if err != nil {
-		return config
+		return
 	}
 
 	var vmessConfig map[string]interface{}
 	if err := json.Unmarshal(data, &vmessConfig); err != nil {
-		return config
+		return
 	}
 
 	// Extract server info
 	server, _ := vmessConfig["add"].(string)
-	vmessConfig["ps"] = c.generateRemark(server, "vmess", tmpl)
+	result.Server = server
+	result.Remark, result.CountryCode = c.generateRemark(server, "vmess", tmpl)
+	vmessConfig["ps"] = result.Remark
 
-	newData, err := json.Marshal(vmessConfig)
-	if err != nil {
-		return config
+	if newData, err := json.Marshal(vmessConfig); err == nil {
+		result.Raw = parts[0] + "://" + base64Encode(newData)
 	}
-
-	return parts[0] + "://" + base64Encode(newData)
 }
 
-func (c *Core) replaceURLRemark(config string, tmpl RemarkTemplate, protocol string) string {
-	// Find existing remark (after #)
-
-	if hashIndex := strings.LastIndex(config, "#"); hashIndex != -1 {
-		config = config[:hashIndex]
-	}
-
-	// Extract server from URL
-	server := extractServerFromURL(config)
-	remark := c.generateRemark(server, protocol, tmpl)
-
-	return config + "#" + url.PathEscape(remark)
+func (c *Core) fillURLResult(result *CheckResult, tmpl RemarkTemplate, protocol string) {
+	result.Raw = strings.Split(result.Raw, "#")[0]
+	server := extractServerFromURL(result.Raw)
+	result.Remark, result.CountryCode = c.generateRemark(server, protocol, tmpl)
+	result.Server = server
+	result.Raw += "#" + url.PathEscape(result.Remark)
 }
 
-func (c *Core) generateRemark(server, protocol string, tmpl RemarkTemplate) string {
-	var parts []string
+func (c *Core) generateRemark(server, protocol string, tmpl RemarkTemplate) (string, string) {
+	parts := []string{"✨ " + tmpl.OrgName}
 
-	// Add organization with sparkles
-	parts = append(parts, "✨ "+tmpl.OrgName)
-
-	// Add protocol emoji
 	if tmpl.ShowProtocol {
 		if protocolEmoji, exists := protocolEmojis[protocol]; exists {
 			parts = append(parts, protocolEmoji.String())
@@ -127,10 +115,10 @@ func (c *Core) generateRemark(server, protocol string, tmpl RemarkTemplate) stri
 		}
 	}
 
+	var countryCode string
 	if tmpl.ShowCountry {
-		if countryCode := getCountryFromServer(server); countryCode != "" {
-			countryFlag, err := emoji.CountryFlag(strings.ToLower(countryCode))
-			if err == nil {
+		if countryCode = getCountryFromServer(server); countryCode != "" {
+			if countryFlag, err := emoji.CountryFlag(countryCode); err == nil {
 				parts = append(parts, countryFlag.String())
 			} else {
 				parts = append(parts, "🏁 "+countryCode)
@@ -138,7 +126,7 @@ func (c *Core) generateRemark(server, protocol string, tmpl RemarkTemplate) stri
 		}
 	}
 
-	return strings.Join(parts, tmpl.Separator)
+	return strings.Join(parts, tmpl.Separator), countryCode
 }
 
 func getCountryFromServer(server string) string {
@@ -153,7 +141,8 @@ func getCountryFromServer(server string) string {
 		}
 	}
 
-	resp, err := (&http.Client{Timeout: 5 * time.Second}).Get(fmt.Sprintf("https://api.country.is/%s", ip))
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get(fmt.Sprintf("https://api.country.is/%s", ip))
 	if err != nil {
 		return ""
 	}
