@@ -2,7 +2,9 @@ package github
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -110,12 +112,12 @@ func (u *Updater) ProcessScanResults(jobID string) error {
 		return err
 	}
 
-	encryptedJSON, err := u.prepareContent(resultsData)
+	results, err := u.prepareContent(resultsData)
 	if err != nil {
 		return err
 	}
 
-	if err := u.updateFileViaGit(jobID, encryptedJSON); err != nil {
+	if err := u.updateFileViaGit(jobID, results); err != nil {
 		return err
 	}
 
@@ -135,22 +137,15 @@ func (u *Updater) fetchResults(jobID string) ([]byte, error) {
 	return resultsData, nil
 }
 
-func (u *Updater) prepareContent(resultsData []byte) ([]byte, error) {
+func (u *Updater) prepareContent(resultsData []byte) (JSONResult, error) {
 	var scanResult ScanResult
 	if err := json.Unmarshal(resultsData, &scanResult); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal scan results: %w", err)
+		return JSONResult{}, fmt.Errorf("failed to unmarshal scan results: %w", err)
 	}
-
-	jsonContent := formatResultsJSON(scanResult)
-	encryptedJSON, err := crypto.Encrypt([]byte(jsonContent), u.encryptionKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encrypt JSON results: %w", err)
-	}
-
-	return encryptedJSON, nil
+	return formatResultsJSON(scanResult), nil
 }
 
-func (u *Updater) updateFileViaGit(jobID string, content []byte) error {
+func (u *Updater) updateFileViaGit(jobID string, current JSONResult) error {
 	os.RemoveAll(u.workDir)
 	defer os.RemoveAll(u.workDir)
 
@@ -163,12 +158,79 @@ func (u *Updater) updateFileViaGit(jobID string, content []byte) error {
 		return fmt.Errorf("failed to clone repository: %w", err)
 	}
 
-	encodedContent := base64.StdEncoding.EncodeToString(content)
 	filePath := filepath.Join(u.workDir, FILENAME)
-	if err := os.WriteFile(filePath, []byte(encodedContent), FILE_PERMS); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
+
+	if err := u.mergeExistingContent(filePath, &current); err != nil {
+		return err
 	}
 
+	if err := u.writeEncryptedContent(filePath, current); err != nil {
+		return err
+	}
+
+	return u.commitAndPush(repo, jobID)
+}
+
+func (u *Updater) hashConfig(config string) string {
+	hash := sha256.Sum256([]byte(config))
+	return hex.EncodeToString(hash[:])
+}
+
+func (u *Updater) mergeExistingContent(filePath string, current *JSONResult) error {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return err
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(string(content))
+	if err != nil {
+		return err
+	}
+
+	decrypted, err := crypto.Decrypt(decoded, u.encryptionKey)
+	if err != nil {
+		return err
+	}
+
+	var existing JSONResult
+	if err := json.Unmarshal(decrypted, &existing); err != nil {
+		return err
+	}
+
+	if len(existing.Results) == 0 {
+		return nil
+	}
+
+	currentMap := make(map[string]struct{}, len(current.Results))
+	for _, result := range current.Results {
+		currentMap[u.hashConfig(result.RawConfig)] = struct{}{}
+	}
+
+	for _, result := range existing.Results {
+		if _, exists := currentMap[u.hashConfig(result.RawConfig)]; !exists {
+			current.Results = append(current.Results, result)
+		}
+	}
+
+	return nil
+}
+
+func (u *Updater) writeEncryptedContent(filePath string, content JSONResult) error {
+	jsonContent, err := json.Marshal(content)
+	if err != nil {
+		return fmt.Errorf("marshal content: %w", err)
+	}
+
+	encrypted, err := crypto.Encrypt(jsonContent, u.encryptionKey)
+	if err != nil {
+		return fmt.Errorf("encrypt content: %w", err)
+	}
+
+	encoded := base64.StdEncoding.EncodeToString(encrypted)
+	return os.WriteFile(filePath, []byte(encoded), FILE_PERMS)
+}
+
+func (u *Updater) commitAndPush(repo *git.Repository, jobID string) error {
 	worktree, err := repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("failed to get worktree: %w", err)
@@ -195,11 +257,10 @@ func (u *Updater) updateFileViaGit(jobID string, content []byte) error {
 	}); err != nil {
 		return fmt.Errorf("failed to push: %w", err)
 	}
-
 	return nil
 }
 
-func formatResultsJSON(scanResult ScanResult) string {
+func formatResultsJSON(scanResult ScanResult) JSONResult {
 	results := make([]JSONConfigResult, 0, len(scanResult.Results))
 	for _, result := range scanResult.Results {
 		if result.Status == core.CheckResultStatusSuccess {
@@ -212,16 +273,9 @@ func formatResultsJSON(scanResult ScanResult) string {
 		}
 	}
 
-	jsonResult := JSONResult{
+	return JSONResult{
 		JobID:     scanResult.JobID,
 		Timestamp: scanResult.Timestamp,
 		Results:   results,
 	}
-
-	jsonData, err := json.Marshal(jsonResult)
-	if err != nil {
-		return "{}"
-	}
-
-	return string(jsonData)
 }
