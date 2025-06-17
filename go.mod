@@ -1,6 +1,6 @@
 module github.com/NaMiraNet/rayping
 
-go 1.24.4
+go 1.24
 
 require (
 	github.com/enescakir/emoji v1.0.0
