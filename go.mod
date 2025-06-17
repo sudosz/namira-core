@@ -1,4 +1,4 @@
-module github.com/NaMiraNet/rayping
+module github.com/NaMiraNet/namira-core
 
 go 1.24
 

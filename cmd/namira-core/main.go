@@ -7,16 +7,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/NaMiraNet/rayping/internal/config"
-	"github.com/NaMiraNet/rayping/internal/github"
-	"github.com/NaMiraNet/rayping/internal/logger"
+	"github.com/NaMiraNet/namira-core/internal/config"
+	"github.com/NaMiraNet/namira-core/internal/github"
+	"github.com/NaMiraNet/namira-core/internal/logger"
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
 
 var (
-	name    = "RayPing"
+	name    = "namira-core"
 	build   = "Custom"
 	version = "1.0.0"
 )
@@ -46,7 +46,7 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   name,
-	Short: "RayPing VPN Link Checker Service",
+	Short: "namira-core VPN Link Checker Service",
 	Long:  `A service to check and validate various VPN protocol links including Vmess, Vless, Shadowsocks, and Trojan.`,
 }
 

@@ -8,8 +8,8 @@ import (
 
 	"slices"
 
-	"github.com/NaMiraNet/rayping/internal/core/checker"
-	"github.com/NaMiraNet/rayping/internal/core/parser"
+	"github.com/NaMiraNet/namira-core/internal/core/checker"
+	"github.com/NaMiraNet/namira-core/internal/core/parser"
 )
 
 type CheckResultStatusType string

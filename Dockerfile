@@ -20,40 +20,40 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     -trimpath \
     -ldflags="-w -s -X main.version=${VERSION} -X main.build=${BUILD_DATE} -X main.commit=${COMMIT_SHA}" \
     -tags=netgo,osusergo \
-    -o /app/rayping \
-    ./cmd/rayping/ \
-    && upx --best --lzma /app/rayping
+    -o /app/namira-core \
+    ./cmd/namira-core/ \
+    && upx --best --lzma /app/namira-core
 
 FROM alpine:3.20
 
 RUN apk update && \
     apk add --no-cache git openssh-client ca-certificates tzdata && \
-    adduser -D -u 1001 rayping && \
+    adduser -D -u 1001 namira && \
     mkdir -p /app/keys && \
-    chown rayping:rayping /app/keys
+    chown namira:namira /app/keys
 
-RUN mkdir -p /home/rayping/.ssh && \
-    ssh-keyscan -H github.com >> /home/rayping/.ssh/known_hosts && \
-    chown -R rayping:rayping /home/rayping/.ssh && \
-    chmod 700 /home/rayping/.ssh && \
-    chmod 600 /home/rayping/.ssh/known_hosts
+RUN mkdir -p /home/namira/.ssh && \
+    ssh-keyscan -H github.com >> /home/namira/.ssh/known_hosts && \
+    chown -R namira:namira /home/namira/.ssh && \
+    chmod 700 /home/namira/.ssh && \
+    chmod 600 /home/namira/.ssh/known_hosts
 
 WORKDIR /app
-COPY --from=builder --chown=rayping:rayping /app/rayping .
+COPY --from=builder --chown=namira:namira-core /app/namira-core .
 
-USER rayping
+USER namira
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
-LABEL org.opencontainers.image.title="RayPing" \
+LABEL org.opencontainers.image.title="namira-core" \
       org.opencontainers.image.description="Proxy configuration checker and validator" \
-      org.opencontainers.image.url="https://github.com/NaMiraNet/rayping" \
+      org.opencontainers.image.url="https://github.com/NaMiraNet/namira-core" \
       org.opencontainers.image.vendor="NaMiraNet" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${COMMIT_SHA}"
 
-ENTRYPOINT ["./rayping"]
+ENTRYPOINT ["./namira-core"]
 CMD ["api"]

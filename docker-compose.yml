@@ -1,5 +1,5 @@
 services:
-  rayping:
+  namira:
     build:
       context: .
       dockerfile: Dockerfile
@@ -7,7 +7,7 @@ services:
         VERSION: ${VERSION:-dev}
         BUILD_DATE: ${BUILD_DATE}
         COMMIT_SHA: ${COMMIT_SHA}
-    container_name: rayping
+    container_name: namira-core
     restart: unless-stopped
     ports:
       - "${SERVER_PORT:-8080}:8080"
@@ -24,16 +24,16 @@ services:
       APP_TIMEOUT: ${APP_TIMEOUT:-10s}
       MAX_CONCURRENT: ${MAX_CONCURRENT:-50}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-      SSH_KNOWN_HOSTS: /home/rayping/.ssh/known_hosts
+      SSH_KNOWN_HOSTS: /home/namira/.ssh/known_hosts
     volumes:
       - ${SSH_KEY_PATH:-./keys/github_deploy_key}:/app/keys/github_deploy_key:ro
     depends_on:
       redis:
         condition: service_healthy
     networks:
-      - rayping-network
+      - namira-network
     healthcheck:
-      test: ["CMD", "./rayping", "version"]
+      test: ["CMD", "./namira-core", "version"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -41,13 +41,13 @@ services:
 
   redis:
     image: redis:7.2-alpine
-    container_name: rayping-redis
+    container_name: namira-redis
     restart: unless-stopped
     command: redis-server ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}} --appendonly yes
     volumes:
       - redis_data:/data
     networks:
-      - rayping-network
+      - namira-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -59,5 +59,5 @@ volumes:
   redis_data:
 
 networks:
-  rayping-network:
+  namira-network:
     driver: bridge

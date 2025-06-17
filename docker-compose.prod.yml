@@ -1,6 +1,6 @@
 # Production overrides
 services:
-  rayping:
+  namira:
     restart: always
     environment:
       LOG_LEVEL: warn

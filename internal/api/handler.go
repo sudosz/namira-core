@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/NaMiraNet/rayping/internal/core"
-	"github.com/NaMiraNet/rayping/internal/github"
-	workerpool "github.com/NaMiraNet/rayping/internal/worker"
+	"github.com/NaMiraNet/namira-core/internal/core"
+	"github.com/NaMiraNet/namira-core/internal/github"
+	workerpool "github.com/NaMiraNet/namira-core/internal/worker"
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"

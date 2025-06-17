@@ -11,9 +11,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/NaMiraNet/rayping/internal/core"
-	"github.com/NaMiraNet/rayping/internal/crypto"
-	"github.com/NaMiraNet/rayping/internal/logger"
+	"github.com/NaMiraNet/namira-core/internal/core"
+	"github.com/NaMiraNet/namira-core/internal/crypto"
+	"github.com/NaMiraNet/namira-core/internal/logger"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"

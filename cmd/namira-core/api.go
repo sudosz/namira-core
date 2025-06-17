@@ -10,9 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/NaMiraNet/rayping/internal/api"
-	"github.com/NaMiraNet/rayping/internal/core"
-	"github.com/NaMiraNet/rayping/internal/logger"
+	"github.com/NaMiraNet/namira-core/internal/api"
+	"github.com/NaMiraNet/namira-core/internal/core"
+	"github.com/NaMiraNet/namira-core/internal/logger"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -20,7 +20,7 @@ import (
 var apiCmd = &cobra.Command{
 	Use:   "api",
 	Short: "Start the API server",
-	Long:  `Start the RayPing API server to handle VPN link checking requests.`,
+	Long:  `Start the namira-core API server to handle VPN link checking requests.`,
 	Run:   runAPIServer,
 }
 
