@@ -99,13 +99,15 @@ func (c *Core) CheckConfigs(configs []string) <-chan CheckResult {
 				}
 
 				delay, err := c.checker.CheckConfig(parsed)
+				c.FillCheckResult(&result)
+
 				if err != nil {
 					result.Status = CheckResultStatusError
 					result.Error = err.Error()
 				} else {
-					c.FillCheckResult(&result)
 					result.RealDelay = delay
 				}
+
 				results <- result
 			}(i, config)
 		}

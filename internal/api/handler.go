@@ -172,10 +172,13 @@ func (h *Handler) executeCheckTask(ctx context.Context, data interface{}) (inter
 		}
 
 		if result.Error != "" {
-			h.logger.Error("Error in check", zap.String("error", result.Error))
+			h.logger.Error("error in check", zap.String("error", result.Error),
+				zap.String("status", string(result.Status)),
+				zap.String("server", result.Server),
+				zap.String("protocol", result.Protocol))
 			job.Done()
 		} else {
-			h.logger.Info("Check result", zap.String("config", result.Raw))
+			h.logger.Info("link response", zap.String("config", result.Raw))
 			job.AddResult(HashConfig(result.Raw), checkResult)
 		}
 

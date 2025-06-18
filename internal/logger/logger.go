@@ -31,6 +31,11 @@ func Init(level string) (*zap.Logger, error) {
 		default:
 			logLevel = zapcore.InfoLevel
 		}
+
+		encoderConfig := zap.NewProductionEncoderConfig()
+		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		encoderConfig.StacktraceKey = ""
+
 		cfg = zap.Config{
 			Level:       zap.NewAtomicLevelAt(logLevel),
 			Development: false,
@@ -39,7 +44,7 @@ func Init(level string) (*zap.Logger, error) {
 				Thereafter: 100,
 			},
 			Encoding:         "json",
-			EncoderConfig:    zap.NewProductionEncoderConfig(),
+			EncoderConfig:    encoderConfig,
 			OutputPaths:      []string{"stderr"},
 			ErrorOutputPaths: []string{"stderr"},
 		}
