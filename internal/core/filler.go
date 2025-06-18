@@ -4,14 +4,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
-	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/enescakir/emoji"
+	"github.com/oschwald/geoip2-golang"
 )
 
 // Protocol emojis
@@ -20,6 +18,16 @@ var protocolEmojis = map[string]emoji.Emoji{
 	"vless":  emoji.Rocket,
 	"trojan": emoji.Shield,
 	"ss":     emoji.Locked,
+}
+
+var geoipDB *geoip2.Reader
+
+func init() {
+	var err error
+	geoipDB, err = geoip2.Open("GeoLite2-Country.mmdb")
+	if err != nil {
+		fmt.Printf("Warning: Could not open GeoLite2 database: %v\n", err)
+	}
 }
 
 type CountryResponse struct {
@@ -85,7 +93,8 @@ func (c *Core) fillVMessResult(result *CheckResult, tmpl RemarkTemplate) {
 	// Extract server info
 	server, _ := vmessConfig["add"].(string)
 	result.Server = server
-	result.Remark, result.CountryCode = c.generateRemark(server, "vmess", tmpl)
+	result.CountryCode = getCountryFromServer(server)
+	result.Remark = c.generateRemark(server, "vmess", tmpl)
 	vmessConfig["ps"] = result.Remark
 
 	if newData, err := json.Marshal(vmessConfig); err == nil {
@@ -96,12 +105,13 @@ func (c *Core) fillVMessResult(result *CheckResult, tmpl RemarkTemplate) {
 func (c *Core) fillURLResult(result *CheckResult, tmpl RemarkTemplate, protocol string) {
 	result.Raw = strings.Split(result.Raw, "#")[0]
 	server := extractServerFromURL(result.Raw)
-	result.Remark, result.CountryCode = c.generateRemark(server, protocol, tmpl)
+	result.CountryCode = getCountryFromServer(server)
+	result.Remark = c.generateRemark(server, protocol, tmpl)
 	result.Server = server
 	result.Raw += "#" + url.PathEscape(result.Remark)
 }
 
-func (c *Core) generateRemark(server, protocol string, tmpl RemarkTemplate) (string, string) {
+func (c *Core) generateRemark(server, protocol string, tmpl RemarkTemplate) string {
 	parts := []string{"✨ " + tmpl.OrgName}
 
 	if tmpl.ShowProtocol {
@@ -116,22 +126,17 @@ func (c *Core) generateRemark(server, protocol string, tmpl RemarkTemplate) (str
 		}
 	}
 
-	var countryCode string
-	if tmpl.ShowCountry {
-		if countryCode = getCountryFromServer(server); countryCode != "" {
-			if countryFlag, err := emoji.CountryFlag(countryCode); err == nil {
-				parts = append(parts, countryFlag.String())
-			} else {
-				parts = append(parts, "🏁 "+countryCode)
-			}
+	if tmpl.ShowCountry && server != "" {
+		if countryCode := getCountryFromServer(server); countryCode != "" {
+			parts = append(parts, countryCode)
 		}
 	}
 
-	return strings.Join(parts, tmpl.Separator), countryCode
+	return strings.Join(parts, tmpl.Separator)
 }
 
 func getCountryFromServer(server string) string {
-	if server == "" {
+	if server == "" || geoipDB == nil {
 		return ""
 	}
 
@@ -142,64 +147,19 @@ func getCountryFromServer(server string) string {
 		}
 	}
 
-	client := &http.Client{Timeout: 5 * time.Second}
-	apis := []struct {
-		url     string
-		handler func([]byte) string
-	}{
-		{
-			url: fmt.Sprintf("http://api.db-ip.com/v2/free/%s/countryCode", ip),
-			handler: func(body []byte) string {
-				return string(body)
-			},
-		},
-		{
-			url: fmt.Sprintf("https://ipapi.co/%s/country_code/", ip),
-			handler: func(body []byte) string {
-				return string(body)
-			},
-		},
-		{
-			url: fmt.Sprintf("https://api.iplocation.net/?ip=%s", ip),
-			handler: func(body []byte) string {
-				var result struct {
-					CountryCode2 string `json:"country_code2"`
-				}
-				if json.Unmarshal(body, &result) == nil {
-					return result.CountryCode2
-				}
-				return ""
-			},
-		},
-		{
-			url: fmt.Sprintf("https://free.freeipapi.com/api/json/%s", ip),
-			handler: func(body []byte) string {
-				var result struct {
-					CountryCode string `json:"countryCode"`
-				}
-				if json.Unmarshal(body, &result) == nil {
-					return result.CountryCode
-				}
-				return ""
-			},
-		},
+	// Try to parse IP
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		return ""
 	}
 
-	for _, api := range apis {
-		if resp, err := client.Get(api.url); err == nil {
-			if resp.StatusCode == http.StatusOK {
-				if body, err := io.ReadAll(resp.Body); err == nil && len(body) > 0 {
-					if code := api.handler(body); code != "" {
-						resp.Body.Close()
-						return code
-					}
-				}
-			}
-			resp.Body.Close()
-		}
+	// Lookup country
+	record, err := geoipDB.Country(parsedIP)
+	if err != nil {
+		return ""
 	}
 
-	return ""
+	return record.Country.IsoCode
 }
 
 func extractServerFromURL(config string) string {
