@@ -13,6 +13,7 @@ import (
 	"github.com/NaMiraNet/namira-core/internal/api"
 	"github.com/NaMiraNet/namira-core/internal/core"
 	"github.com/NaMiraNet/namira-core/internal/logger"
+	workerpool "github.com/NaMiraNet/namira-core/internal/worker"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -47,13 +48,19 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 			logger.Info("Jobs Completed", zap.String("job_id", result.JobID), zap.Int("total", len(result.Results)))
 		}
 	}
+	// worker instace
+	worker := workerpool.NewWorkerPool(workerpool.WorkerPoolConfig{
+		WorkerCount:   cfg.Worker.Count,
+		TaskQueueSize: cfg.Worker.QueueSize,
+	})
 
 	router := api.NewRouter(
 		coreInstance,
 		redisClient,
 		callbackHandler,
 		appLogger,
-		updater)
+		updater,
+		worker)
 
 	serverAddr := fmt.Sprintf("%s:%s", cfg.Server.Host, serverPort)
 	server := &http.Server{

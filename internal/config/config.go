@@ -9,6 +9,7 @@ import (
 // Config holds the base configuration
 type Config struct {
 	Server ServerConfig
+	Worker WorkerConfig
 	Redis  RedisConfig
 	App    AppConfig
 	Github GithubConfig
@@ -20,6 +21,11 @@ type ServerConfig struct {
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 	IdleTimeout  time.Duration
+}
+
+type WorkerConfig struct {
+	Count     int
+	QueueSize int
 }
 
 type RedisConfig struct {
@@ -50,6 +56,10 @@ func Load() *Config {
 			ReadTimeout:  getEnvDuration("SERVER_READ_TIMEOUT", 30*time.Second),
 			WriteTimeout: getEnvDuration("SERVER_WRITE_TIMEOUT", 30*time.Second),
 			IdleTimeout:  getEnvDuration("SERVER_IDLE_TIMEOUT", 60*time.Second),
+		},
+		Worker: WorkerConfig{
+			Count:     getEnvInt("WORKER_COUNT", 5),
+			QueueSize: getEnvInt("WORKER_QUEUE_SIZE", 100),
 		},
 		Redis: RedisConfig{
 			Addr:     getEnv("REDIS_ADDR", "localhost:6379"),

@@ -35,22 +35,17 @@ type Handler struct {
 	updater    *github.Updater
 }
 
-func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, logger *zap.Logger, updater *github.Updater) *Handler {
-	pool := workerpool.NewWorkerPool(workerpool.WorkerPoolConfig{
-		WorkerCount:   5,
-		TaskQueueSize: 100,
-	})
-
+func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, logger *zap.Logger, updater *github.Updater, worker *workerpool.WorkerPool) *Handler {
 	handler := &Handler{
 		core:       c,
-		workerPool: pool,
+		workerPool: worker,
 		redis:      redisClient,
 		logger:     logger,
 		updater:    updater,
 	}
 
-	pool.SetResultHandler(handler.handleTaskResult(callbackHandler))
-	if err := pool.Start(); err != nil {
+	worker.SetResultHandler(handler.handleTaskResult(callbackHandler))
+	if err := worker.Start(); err != nil {
 		panic("Failed to start worker pool: " + err.Error())
 	}
 	return handler

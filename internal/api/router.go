@@ -7,14 +7,15 @@ import (
 	"github.com/NaMiraNet/namira-core/internal/core"
 	"github.com/NaMiraNet/namira-core/internal/github"
 	"github.com/NaMiraNet/namira-core/internal/logger"
+	workerpool "github.com/NaMiraNet/namira-core/internal/worker"
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
 
-func NewRouter(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, logger *zap.Logger, updater *github.Updater) *mux.Router {
+func NewRouter(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, logger *zap.Logger, updater *github.Updater, worker *workerpool.WorkerPool) *mux.Router {
 	r := mux.NewRouter()
-	h := NewHandler(c, redisClient, callbackHandler, logger, updater)
+	h := NewHandler(c, redisClient, callbackHandler, logger, updater, worker)
 
 	r.Use(corsMiddleware, authMiddleware, loggingMiddleware)
 
