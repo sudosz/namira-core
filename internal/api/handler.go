@@ -18,6 +18,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const REDIS_SET_DURATION = 30 * time.Minute
+
 type CallbackHandlerResult struct {
 	JobID   string
 	Results []core.CheckResult
@@ -215,7 +217,7 @@ func (h *Handler) handleTaskResult(callback CallbackHandler) func(workerpool.Res
 
 			ctx := context.Background()
 			resultsKey := fmt.Sprintf("scan_results:%s", callbackResult.JobID)
-			if err := h.redis.Set(ctx, resultsKey, resultsData, 24*time.Hour).Err(); err != nil {
+			if err := h.redis.Set(ctx, resultsKey, resultsData, REDIS_SET_DURATION).Err(); err != nil {
 				h.logger.Error("Failed to store results in Redis", zap.Error(err))
 				return
 			}
