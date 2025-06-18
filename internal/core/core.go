@@ -1,8 +1,10 @@
 package core
 
 import (
+	"runtime"
 	"sort"
 	"sync"
+	"syscall"
 	"time"
 
 	"slices"
@@ -49,13 +51,60 @@ type CoreOpts struct {
 	RemarkTemplate     *RemarkTemplate
 }
 
+func getSystemFDLimit() int {
+	var rlim syscall.Rlimit
+	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlim)
+	if err != nil {
+		return 10000
+	}
+
+	limit := int(rlim.Cur)
+	if limit > 100000 {
+		limit = 100000
+	}
+
+	return limit
+}
+
+func calculateMaxConcurrent() int {
+	numCPU := runtime.NumCPU()
+
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+
+	availableMemMB := memStats.Sys / 1024 / 1024
+
+	basePerCPU := 500
+	cpuBasedLimit := numCPU * basePerCPU
+
+	memoryBasedLimit := int(availableMemMB * 1024)
+	maxConcurrent := cpuBasedLimit
+	if memoryBasedLimit < maxConcurrent {
+		maxConcurrent = memoryBasedLimit
+	}
+
+	minLimit := 100
+	maxLimit := getSystemFDLimit()
+
+	// reserve FDs for other operations (80% of available)
+	maxLimit = int(float64(maxLimit) * 0.8)
+
+	if maxConcurrent < minLimit {
+		maxConcurrent = minLimit
+	} else if maxConcurrent > maxLimit {
+		maxConcurrent = maxLimit
+	}
+
+	return maxConcurrent
+}
+
 func NewCore(opts ...CoreOpts) *Core {
 	if len(opts) == 0 {
 		opts = append(opts, CoreOpts{
 			CheckTimeout:       10 * time.Second,
 			CheckServer:        "1.1.1.1",
 			CheckPort:          80,
-			CheckMaxConcurrent: 10,
+			CheckMaxConcurrent: calculateMaxConcurrent(),
 		})
 	}
 
