@@ -4,15 +4,18 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	_ "github.com/joho/godotenv/autoload"
 )
 
 // Config holds the base configuration
 type Config struct {
-	Server ServerConfig
-	Worker WorkerConfig
-	Redis  RedisConfig
-	App    AppConfig
-	Github GithubConfig
+	Server   ServerConfig
+	Worker   WorkerConfig
+	Redis    RedisConfig
+	App      AppConfig
+	Github   GithubConfig
+	Telegram TelegramConfig
 }
 
 type ServerConfig struct {
@@ -47,6 +50,14 @@ type AppConfig struct {
 	EncryptionKey string
 }
 
+type TelegramConfig struct {
+	BotToken        string
+	Channel         string
+	Template        string
+	ProxyURL        string
+	SendingInterval time.Duration
+}
+
 // Load loads configuration from environment variables with defaults value
 func Load() *Config {
 	return &Config{
@@ -76,6 +87,13 @@ func Load() *Config {
 			Timeout:       getEnvDuration("APP_TIMEOUT", 10*time.Second),
 			MaxConcurrent: getEnvInt("MAX_CONCURRENT", 50),
 			EncryptionKey: getEnv("ENCRYPTION_KEY", ""),
+		},
+		Telegram: TelegramConfig{
+			BotToken:        getEnv("TELEGRAM_BOT_TOKEN", ""),
+			Channel:         getEnv("TELEGRAM_CHANNEL", ""),
+			Template:        getEnv("TELEGRAM_TEMPLATE", ""),
+			ProxyURL:        getEnv("TELEGRAM_PROXY_URL", ""),
+			SendingInterval: getEnvDuration("TELEGRAM_SENDING_INTERVAL", 10*time.Second),
 		},
 	}
 }

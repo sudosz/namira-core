@@ -27,6 +27,7 @@ type CallbackHandlerResult struct {
 }
 
 type CallbackHandler func(CallbackHandlerResult)
+type ConfigSuccessHandler func(core.CheckResult)
 
 type Handler struct {
 	core       *core.Core
@@ -35,15 +36,17 @@ type Handler struct {
 	jobs       sync.Map
 	logger     *zap.Logger
 	updater    *github.Updater
+	jobsOnSuccess ConfigSuccessHandler
 }
 
-func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, logger *zap.Logger, updater *github.Updater, worker *workerpool.WorkerPool) *Handler {
+func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, configSuccessHandler ConfigSuccessHandler, logger *zap.Logger, updater *github.Updater, worker *workerpool.WorkerPool) *Handler {
 	handler := &Handler{
 		core:       c,
 		workerPool: worker,
 		redis:      redisClient,
 		logger:     logger,
 		updater:    updater,
+		jobsOnSuccess: configSuccessHandler,
 	}
 
 	worker.SetResultHandler(handler.handleTaskResult(callbackHandler))
@@ -182,6 +185,7 @@ func (h *Handler) executeCheckTask(ctx context.Context, data interface{}) (inter
 		} else {
 			h.logger.Info("link response", zap.String("config", result.Raw))
 			job.AddResult(HashConfig(result.Raw), checkResult)
+			h.jobsOnSuccess(result)
 		}
 
 		if job.DoneCount >= job.TotalCount {

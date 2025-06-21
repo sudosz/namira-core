@@ -13,9 +13,9 @@ import (
 	"go.uber.org/zap"
 )
 
-func NewRouter(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, logger *zap.Logger, updater *github.Updater, worker *workerpool.WorkerPool) *mux.Router {
+func NewRouter(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, configSuccessHandler ConfigSuccessHandler, logger *zap.Logger, updater *github.Updater, worker *workerpool.WorkerPool) *mux.Router {
 	r := mux.NewRouter()
-	h := NewHandler(c, redisClient, callbackHandler, logger, updater, worker)
+	h := NewHandler(c, redisClient, callbackHandler, configSuccessHandler, logger, updater, worker)
 
 	r.Use(corsMiddleware, authMiddleware, loggingMiddleware)
 

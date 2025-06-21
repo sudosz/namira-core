@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,9 +14,11 @@ import (
 	"github.com/NaMiraNet/namira-core/internal/api"
 	"github.com/NaMiraNet/namira-core/internal/core"
 	"github.com/NaMiraNet/namira-core/internal/logger"
+	"github.com/NaMiraNet/namira-core/internal/notify"
 	workerpool "github.com/NaMiraNet/namira-core/internal/worker"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+	"golang.org/x/time/rate"
 )
 
 var apiCmd = &cobra.Command{
@@ -48,6 +51,43 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 			logger.Info("Jobs Completed", zap.String("job_id", result.JobID), zap.Int("total", len(result.Results)))
 		}
 	}
+
+	telegramTransport := &http.Transport{}
+	if proxyURL := cfg.Telegram.ProxyURL; proxyURL != "" {
+		proxy, err := url.Parse(proxyURL)
+		if err != nil {
+			logger.Fatal("Failed to parse proxy URL", zap.Error(err))
+		}
+		telegramTransport.Proxy = http.ProxyURL(proxy)
+	}
+
+	telegram := notify.NewTelegram(
+		cfg.Telegram.BotToken,
+		cfg.Telegram.Channel,
+		cfg.Telegram.Template,
+		&http.Client{
+			Timeout:   10 * time.Second,
+			Transport: telegramTransport,
+		},
+	)
+
+	tgLimiter := rate.NewLimiter(rate.Every(cfg.Telegram.SendingInterval), 1)
+
+	telegramConfigResultHandler := func(result core.CheckResult) {
+		if result.Error != "" {
+			return
+		}
+		go func() {
+			if err := tgLimiter.Wait(context.Background()); err != nil {
+				logger.Error("Rate limit error", zap.Error(err))
+				return
+			}
+
+			if err := telegram.Send(result); err != nil {
+				logger.Error("Failed to send Telegram notification", zap.Error(err))
+			}
+		}()
+	}
 	// worker instace
 	worker := workerpool.NewWorkerPool(workerpool.WorkerPoolConfig{
 		WorkerCount:   cfg.Worker.Count,
@@ -58,6 +98,7 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 		coreInstance,
 		redisClient,
 		callbackHandler,
+		telegramConfigResultHandler,
 		appLogger,
 		updater,
 		worker)
