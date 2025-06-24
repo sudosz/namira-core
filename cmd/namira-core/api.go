@@ -75,7 +75,8 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 	tgLimiter := rate.NewLimiter(rate.Every(cfg.Telegram.SendingInterval), 1)
 
 	telegramConfigResultHandler := func(result core.CheckResult) {
-		if result.Error != "" {
+		// ignore if error or delay too long
+		if result.Error != "" || result.RealDelay > 3*time.Second {
 			return
 		}
 		go func() {
