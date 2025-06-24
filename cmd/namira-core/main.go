@@ -5,6 +5,7 @@ import (
 	"log"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/NaMiraNet/namira-core/internal/config"
 	"github.com/NaMiraNet/namira-core/internal/core"
@@ -34,6 +35,12 @@ func VersionStatement() string {
 }
 
 var (
+	port          string
+	timeout       time.Duration
+	maxConcurrent int
+	checkHost     string
+	encryptionKey string
+
 	cfg         *config.Config
 	updater     *github.Updater
 	redisClient *redis.Client
@@ -87,11 +94,23 @@ func init() {
 		zap.String("repo", fmt.Sprintf("%s/%s", cfg.Github.Owner, cfg.Github.Repo)),
 		zap.String("ssh_key", cfg.Github.SSHKeyPath))
 
-	rootCmd.PersistentFlags().StringVarP(&cfg.Server.Port, "port", "p", "8080", "Port to run the service on")
-	rootCmd.PersistentFlags().DurationVarP(&cfg.App.Timeout, "timeout", "t", core.DefaultCheckTimeout, "Connection timeout")
-	rootCmd.PersistentFlags().IntVarP(&cfg.App.MaxConcurrent, "concurrent", "c", 0, "Maximum concurrent connections")
-	rootCmd.PersistentFlags().StringVarP(&cfg.App.CheckHost, "host", "H", "1.1.1.1:80", "Host to check")
-	rootCmd.PersistentFlags().StringVarP(&cfg.App.EncryptionKey, "encryption-key", "e", "", "Encryption key for configuration")
+	rootCmd.PersistentFlags().StringVarP(&port, "port", "p", "", "Port to run the service on")
+	rootCmd.PersistentFlags().DurationVarP(&timeout, "timeout", "t", core.DefaultCheckTimeout, "Connection timeout")
+	rootCmd.PersistentFlags().IntVarP(&maxConcurrent, "concurrent", "c", 0, "Maximum concurrent connections")
+	rootCmd.PersistentFlags().StringVarP(&checkHost, "host", "H", "", "Host to check")
+
+	if cfg.Server.Port == "" {
+		cfg.Server.Port = port
+	}
+	if cfg.App.Timeout == 0 {
+		cfg.App.Timeout = timeout
+	}
+	if cfg.App.MaxConcurrent == 0 {
+		cfg.App.MaxConcurrent = maxConcurrent
+	}
+	if cfg.App.CheckHost == "" {
+		cfg.App.CheckHost = checkHost
+	}
 
 	// Add the API server subcommand
 	rootCmd.AddCommand(apiCmd)
