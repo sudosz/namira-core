@@ -10,6 +10,7 @@ import (
 
 	"github.com/NaMiraNet/namira-core/internal/core"
 	"github.com/NaMiraNet/namira-core/internal/qr"
+	"github.com/enescakir/emoji"
 )
 
 type Telegram struct {
@@ -43,7 +44,30 @@ type telegramMessage struct {
 func (t *Telegram) initTemplate() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if tmpl, err := template.New("telegram").Parse(t.Template); err == nil {
+	funcMap := template.FuncMap{
+		"protocolEmoji": func(protocol string) string {
+			switch protocol {
+			case "vmess":
+				return emoji.HighVoltage.String()
+			case "vless":
+				return emoji.Rocket.String()
+			case "trojan":
+				return emoji.Shield.String()
+			case "shadowsocks":
+				return emoji.Locked.String()
+			default:
+				return emoji.RepeatButton.String()
+			}
+		},
+		"countryFlag": func(countryCode string) string {
+			e, err := emoji.CountryFlag(countryCode)
+			if err != nil {
+				return emoji.GlobeWithMeridians.String()
+			}
+			return e.String()
+		},
+	}
+	if tmpl, err := template.New("telegram").Funcs(funcMap).Parse(t.Template); err == nil {
 		t.tmpl = tmpl
 	}
 }
