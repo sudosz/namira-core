@@ -54,7 +54,7 @@ func DefaultRemarkTemplate() RemarkTemplate {
 }
 
 func (c *Core) FillCheckResult(result *CheckResult, template ...RemarkTemplate) {
-	tmpl := DefaultRemarkTemplate()
+	tmpl := c.remarkTemplate
 	if len(template) > 0 {
 		tmpl = template[0]
 	}
