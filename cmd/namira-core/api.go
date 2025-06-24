@@ -65,6 +65,7 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 		cfg.Telegram.BotToken,
 		cfg.Telegram.Channel,
 		cfg.Telegram.Template,
+		cfg.Telegram.QRConfig,
 		&http.Client{
 			Timeout:   10 * time.Second,
 			Transport: telegramTransport,
@@ -83,7 +84,7 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 				return
 			}
 
-			if err := telegram.Send(result); err != nil {
+			if err := telegram.SendWithQRCode(result); err != nil {
 				logger.Error("Failed to send Telegram notification", zap.Error(err))
 			}
 		}()

@@ -9,23 +9,26 @@ import (
 	"text/template"
 
 	"github.com/NaMiraNet/namira-core/internal/core"
+	"github.com/NaMiraNet/namira-core/internal/qr"
 )
 
 type Telegram struct {
-	BotToken string
-	Channel  string
-	Client   *http.Client
-	Template string
-	mu       sync.RWMutex
-	tmpl     *template.Template
+	BotToken    string
+	Channel     string
+	Client      *http.Client
+	Template    string
+	qrGenerator *qr.QRGenerator
+	mu          sync.RWMutex
+	tmpl        *template.Template
 }
 
-func NewTelegram(botToken, channel, template string, client *http.Client) *Telegram {
+func NewTelegram(botToken, channel, template, qrConfig string, client *http.Client) *Telegram {
 	t := &Telegram{
 		BotToken: botToken,
 		Channel:  channel,
 		Template: template,
 		Client:   client,
+		qrGenerator: qr.NewQRGenerator(qrConfig),
 	}
 	t.initTemplate()
 	return t
@@ -85,6 +88,64 @@ func (t *Telegram) Send(result core.CheckResult) error {
 	resp, err := t.Client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send message: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("telegram API returned non-200 status code: %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+type telegramPhoto struct {
+	ChatID    string `json:"chat_id"`
+	Photo     string `json:"photo"`
+	Caption   string `json:"caption,omitempty"`
+	ParseMode string `json:"parse_mode,omitempty"`
+}
+
+func (t *Telegram) SendWithQRCode(result core.CheckResult) error {
+	t.mu.RLock()
+	tmpl := t.tmpl
+	t.mu.RUnlock()
+
+	if tmpl == nil {
+		t.initTemplate()
+		t.mu.RLock()
+		tmpl = t.tmpl
+		t.mu.RUnlock()
+		if tmpl == nil {
+			return fmt.Errorf("failed to initialize template")
+		}
+	}
+
+	var caption bytes.Buffer
+	if err := tmpl.Execute(&caption, result); err != nil {
+		return fmt.Errorf("failed to execute template: %w", err)
+	}
+
+	jsonData, err := json.Marshal(telegramPhoto{
+		ChatID:    t.Channel,
+		Photo:     t.qrGenerator.GenerateURL(result.Raw),
+		Caption:   caption.String(),
+		ParseMode: "HTML",
+	})
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost,
+		"https://api.telegram.org/bot"+t.BotToken+"/sendPhoto",
+		bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := t.Client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send image: %w", err)
 	}
 	defer resp.Body.Close()
 

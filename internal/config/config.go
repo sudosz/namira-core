@@ -54,6 +54,7 @@ type TelegramConfig struct {
 	BotToken        string
 	Channel         string
 	Template        string
+	QRConfig        string
 	ProxyURL        string
 	SendingInterval time.Duration
 }
@@ -92,6 +93,7 @@ func Load() *Config {
 			BotToken:        getEnv("TELEGRAM_BOT_TOKEN", ""),
 			Channel:         getEnv("TELEGRAM_CHANNEL", ""),
 			Template:        getEnv("TELEGRAM_TEMPLATE", ""),
+			QRConfig:        getEnv("TELEGRAM_QR_CONFIG", ""),
 			ProxyURL:        getEnv("TELEGRAM_PROXY_URL", ""),
 			SendingInterval: getEnvDuration("TELEGRAM_SENDING_INTERVAL", 10*time.Second),
 		},
