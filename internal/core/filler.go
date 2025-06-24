@@ -159,7 +159,10 @@ func getCountryFromServer(server string) string {
 		return ""
 	}
 
-	return record.Country.IsoCode
+	if code := record.Country.IsoCode; code != "" {
+		return code
+	}
+	return record.RegisteredCountry.IsoCode
 }
 
 func extractServerFromURL(config string) string {
