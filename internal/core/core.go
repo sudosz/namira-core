@@ -21,6 +21,12 @@ const (
 	CheckResultStatusError       CheckResultStatusType = "error"
 )
 
+const (
+	DefaultCheckTimeout = 10 * time.Second
+	DefaultCheckServer  = "1.1.1.1"
+	DefaultCheckPort    = 443
+)
+
 type Config interface {
 	MarshalJSON() ([]byte, error)
 }
@@ -111,6 +117,19 @@ func NewCore(opts ...CoreOpts) *Core {
 	remarkTemplate := DefaultRemarkTemplate()
 	if opts[0].RemarkTemplate != nil {
 		remarkTemplate = *opts[0].RemarkTemplate
+	}
+
+	if opts[0].CheckMaxConcurrent == 0 {
+		opts[0].CheckMaxConcurrent = calculateMaxConcurrent()
+	}
+	if opts[0].CheckTimeout == 0 {
+		opts[0].CheckTimeout = DefaultCheckTimeout
+	}
+	if opts[0].CheckServer == "" {
+		opts[0].CheckServer = DefaultCheckServer
+	}
+	if opts[0].CheckPort == 0 {
+		opts[0].CheckPort = DefaultCheckPort
 	}
 
 	return &Core{

@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
+	"strconv"
 
 	"net/http"
 	"net/url"
@@ -30,10 +32,11 @@ var apiCmd = &cobra.Command{
 
 func runAPIServer(cmd *cobra.Command, args []string) {
 	// Use global config, but allow CLI flags to override
-	serverPort := port
-	if serverPort == "" {
-		serverPort = cfg.Server.Port
+	checkServer, checkP, err := net.SplitHostPort(cfg.App.CheckHost)
+	if err != nil {
+		logger.Fatal("Failed to parse check server", zap.Error(err))
 	}
+	checkPort, _ := strconv.Atoi(checkP)
 
 	ctx := context.Background()
 	if err := redisClient.Ping(ctx).Err(); err != nil {
@@ -41,7 +44,19 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 	}
 	logger.Info("Connected to Redis successfully", zap.String("addr", cfg.Redis.Addr))
 
-	coreInstance := core.NewCore()
+	coreInstance := core.NewCore(core.CoreOpts{
+		CheckTimeout:       cfg.App.Timeout,
+		CheckServer:        checkServer,
+		CheckPort:          uint32(checkPort),
+		CheckMaxConcurrent: cfg.App.MaxConcurrent,
+		RemarkTemplate: &core.RemarkTemplate{
+			OrgName:      "@NamiraNet",
+			Separator:    " | ",
+			ShowCountry:  true,
+			ShowHost:     true,
+			ShowProtocol: true,
+		},
+	})
 
 	// Define callback handler for completed jobs
 	callbackHandler := func(result api.CallbackHandlerResult) {
@@ -105,7 +120,7 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 		updater,
 		worker)
 
-	serverAddr := fmt.Sprintf("%s:%s", cfg.Server.Host, serverPort)
+	serverAddr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)
 	server := &http.Server{
 		Addr:         serverAddr,
 		Handler:      router,

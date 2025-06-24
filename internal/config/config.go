@@ -47,6 +47,7 @@ type AppConfig struct {
 	LogLevel      string
 	Timeout       time.Duration
 	MaxConcurrent int
+	CheckHost     string
 	EncryptionKey string
 }
 
@@ -86,7 +87,8 @@ func Load() *Config {
 		App: AppConfig{
 			LogLevel:      getEnv("LOG_LEVEL", "info"),
 			Timeout:       getEnvDuration("APP_TIMEOUT", 10*time.Second),
-			MaxConcurrent: getEnvInt("MAX_CONCURRENT", 50),
+			MaxConcurrent: getEnvInt("MAX_CONCURRENT", 0),
+			CheckHost:     getEnv("CHECK_HOST", "1.1.1.1:80"),
 			EncryptionKey: getEnv("ENCRYPTION_KEY", ""),
 		},
 		Telegram: TelegramConfig{
