@@ -1,0 +1,154 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod verify
+
+builds:
+  - id: namira-core
+    binary: namira-core
+    main: ./cmd/namira-core
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    goarm:
+      - "7"
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.build={{ .Date }}
+      - -X main.commit={{ .Commit }}
+    tags:
+      - netgo
+      - osusergo
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    files:
+      - LICENSE*
+      - README*
+      - CHANGELOG*
+      - .env.example
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^test:"
+      - "^ci:"
+      - "^style:"
+  groups:
+    - title: "🚀 Features"
+      regexp: "^.*feat[(\\w)]*:+.*$"
+      order: 0
+    - title: "🐛 Bug Fixes"
+      regexp: "^.*fix[(\\w)]*:+.*$"
+      order: 1 
+    - title: "⚡ Enhancements"
+      regexp: "^.*chore[(\\w)]*:+.*$"1
+      order: 2
+    - title: "🔧 Improvements"
+      regexp: "^.*refactor[(\\w)]*:+.*$"
+      order: 3
+    - title: "📚 Documentation"
+      regexp: "^.*docs?[(\\w)]*:+.*$"
+      order: 4
+    - title: "Others"
+      order: 999
+
+release:
+  github:
+    owner: NamiraNet
+    name: namira-core
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## 🎉 {{ .ProjectName }} {{ .Version }}
+    
+    **Release Date:** {{ .Date }}
+    
+    ### 📦 Installation
+    
+    
+    # Linux/macOS
+    curl -sSL https://github.com/NamiraNet/namira-core/releases/download/{{ .Tag }}/{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}.tar.gz | tar -xz
+    
+    # Or download directly from assets below
+    
+    
+    ### 🚀 Quick Start
+    
+    
+    ./namira-core api --port 8080
+    
+  footer: |
+    ---
+    
+    **Full Changelog**: https://github.com/NamiraNet/namira-core/compare/{{ .PreviousTag }}...{{ .Tag }}
+    
+    💡 **Need help?** Check our [documentation](https://github.com/NamiraNet/namira-core#readme) or [open an issue](https://github.com/NamiraNet/namira-core/issues/new).
+
+dockers:
+  - image_templates:
+      - "ghcr.io/namiranet/namira-core:{{ .Version }}"
+      - "ghcr.io/namiranet/namira-core:latest"
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.source=https://github.com/NamiraNet/namira-core"
+      - "--platform=linux/amd64"
+
+brews:
+  - name: namira-core
+    repository:
+      owner: NamiraNet
+      name: homebrew-tap
+    homepage: "https://github.com/NamiraNet/namira-core"
+    description: "High-performance VPN configuration checker and validator"
+    license: "AGPL-3.0"
+    install: |
+      bin.install "namira-core"
+    test: |
+      system "#{bin}/namira-core", "--version"
+
+nfpms:
+  - id: packages
+    package_name: namira-core
+    vendor: NamiraNet
+    homepage: "https://github.com/NamiraNet/namira-core"
+    maintainer: "NamiraNet <namiranet@proton.me>"
+    description: "High-performance VPN configuration checker and validator"
+    license: AGPL-3.0
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+    contents:
+      - src: .env.example
+        dst: /etc/namira-core/.env.example
+        type: config
