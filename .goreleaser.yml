@@ -65,7 +65,7 @@ changelog:
       regexp: "^.*fix[(\\w)]*:+.*$"
       order: 1 
     - title: "⚡ Enhancements"
-      regexp: "^.*chore[(\\w)]*:+.*$"1
+      regexp: "^.*chore[(\\w)]*:+.*$"
       order: 2
     - title: "🔧 Improvements"
       regexp: "^.*refactor[(\\w)]*:+.*$"
