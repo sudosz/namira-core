@@ -128,7 +128,11 @@ func (c *Core) generateRemark(server, protocol string, tmpl RemarkTemplate) stri
 
 	if tmpl.ShowCountry && server != "" {
 		if countryCode := getCountryFromServer(server); countryCode != "" {
-			parts = append(parts, countryCode)
+			if countryFlag, err := emoji.CountryFlag(countryCode); err == nil {
+				parts = append(parts, countryFlag.String())
+			} else {
+				parts = append(parts, countryCode)
+			}
 		}
 	}
 
