@@ -4,6 +4,8 @@
 *.dll
 *.so
 *.dylib
+bin/
+dist/
 
 # Test binary, built with `go test -c`
 *.test
@@ -27,3 +29,7 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Binary output directories
+_output/
+build/
