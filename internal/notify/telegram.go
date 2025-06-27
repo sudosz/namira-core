@@ -8,8 +8,8 @@ import (
 	"sync"
 	"text/template"
 
-	"github.com/NaMiraNet/namira-core/internal/core"
-	"github.com/NaMiraNet/namira-core/internal/qr"
+	"github.com/NamiraNet/namira-core/internal/core"
+	"github.com/NamiraNet/namira-core/internal/qr"
 	"github.com/enescakir/emoji"
 )
 

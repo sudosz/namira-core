@@ -45,7 +45,7 @@ type RemarkTemplate struct {
 
 func DefaultRemarkTemplate() RemarkTemplate {
 	return RemarkTemplate{
-		OrgName:      "NaMiraNet",
+		OrgName:      "NamiraNet",
 		Separator:    " | ",
 		ShowCountry:  true,
 		ShowHost:     true,

@@ -12,9 +12,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/NaMiraNet/namira-core/internal/core"
-	"github.com/NaMiraNet/namira-core/internal/crypto"
-	"github.com/NaMiraNet/namira-core/internal/logger"
+	"github.com/NamiraNet/namira-core/internal/core"
+	"github.com/NamiraNet/namira-core/internal/crypto"
+	"github.com/NamiraNet/namira-core/internal/logger"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"

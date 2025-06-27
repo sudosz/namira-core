@@ -8,8 +8,8 @@ import (
 
 	"slices"
 
-	"github.com/NaMiraNet/namira-core/internal/core/checker"
-	"github.com/NaMiraNet/namira-core/internal/core/parser"
+	"github.com/NamiraNet/namira-core/internal/core/checker"
+	"github.com/NamiraNet/namira-core/internal/core/parser"
 )
 
 type CheckResultStatusType string

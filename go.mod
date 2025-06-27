@@ -1,4 +1,4 @@
-module github.com/NaMiraNet/namira-core
+module github.com/NamiraNet/namira-core
 
 go 1.24
 

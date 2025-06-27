@@ -50,8 +50,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 LABEL org.opencontainers.image.title="namira-core" \
       org.opencontainers.image.description="Proxy configuration checker and validator" \
-      org.opencontainers.image.url="https://github.com/NaMiraNet/namira-core" \
-      org.opencontainers.image.vendor="NaMiraNet" \
+      org.opencontainers.image.url="https://github.com/NamiraNet/namira-core" \
+      org.opencontainers.image.vendor="NamiraNet" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${COMMIT_SHA}"
