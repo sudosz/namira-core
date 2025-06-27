@@ -153,22 +153,6 @@ dockers:
       - "--label=org.opencontainers.image.source=https://github.com/sudosz/namira-core"
       - "--platform=linux/amd64"
 
-homebrew_casks:
-  - name: namira-core
-    repository:
-      owner: NamiraNet
-      name: homebrew-tap
-    homepage: "https://github.com/NamiraNet/namira-core"
-    description: "High-performance VPN configuration checker and validator"
-    hooks:
-      post:
-        install: |
-          bin.install "namira-core"
-          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/namira-core"]
-          end
-    dependencies:
-      - formula: git
 
 nfpms:
   - id: packages
