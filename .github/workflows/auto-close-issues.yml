@@ -1,0 +1,72 @@
+name: Auto Close Issues
+
+on:
+  push:
+    branches: [main, dev]
+  workflow_run:
+    workflows: ["CI", "Release"]
+    types: [completed]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  auto-close:
+    name: Close Resolved Issues
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'push'
+    steps:
+      - name: Close resolved issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.sha.substring(0, 7);
+            const runUrl = `${context.payload.repository.html_url}/actions/runs/${context.runId}`;
+            const commitUrl = `${context.payload.repository.html_url}/commit/${context.sha}`;
+            
+            // Get all open failure issues
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'ci-failure,release-failure',
+              per_page: 50
+            });
+            
+            console.log(`Found ${openIssues.length} open failure issues`);
+            
+            for (const issue of openIssues) {
+              // Close issues that are not from current commit
+              if (issue.body && !issue.body.includes(sha)) {
+                const issueType = issue.labels.find(l => 
+                  l.name === 'ci-failure' || l.name === 'release-failure'
+                )?.name || 'unknown';
+                
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `✅ **Auto-resolved**
+            
+            This ${issueType.replace('-', ' ')} has been resolved by successful workflow execution.
+            
+            **Resolved by:** [${sha}](${commitUrl})
+            **Workflow:** [View Run](${runUrl})
+            **Time:** ${new Date().toISOString()}
+            
+            ---
+            *Auto-closed by GitHub Actions*`
+                });
+                
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  state: 'closed',
+                  labels: [...issue.labels.map(l => l.name), 'auto-resolved']
+                });
+                
+                console.log(`✅ Auto-closed issue #${issue.number}: ${issue.title}`);
+              }
+            }
