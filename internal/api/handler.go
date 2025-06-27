@@ -30,22 +30,22 @@ type CallbackHandler func(CallbackHandlerResult)
 type ConfigSuccessHandler func(core.CheckResult)
 
 type Handler struct {
-	core       *core.Core
-	workerPool *workerpool.WorkerPool
-	redis      *redis.Client
-	jobs       sync.Map
-	logger     *zap.Logger
-	updater    *github.Updater
+	core          *core.Core
+	workerPool    *workerpool.WorkerPool
+	redis         *redis.Client
+	jobs          sync.Map
+	logger        *zap.Logger
+	updater       *github.Updater
 	jobsOnSuccess ConfigSuccessHandler
 }
 
 func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, configSuccessHandler ConfigSuccessHandler, logger *zap.Logger, updater *github.Updater, worker *workerpool.WorkerPool) *Handler {
 	handler := &Handler{
-		core:       c,
-		workerPool: worker,
-		redis:      redisClient,
-		logger:     logger,
-		updater:    updater,
+		core:          c,
+		workerPool:    worker,
+		redis:         redisClient,
+		logger:        logger,
+		updater:       updater,
 		jobsOnSuccess: configSuccessHandler,
 	}
 
@@ -278,14 +278,18 @@ func (h *Handler) Close() {
 // Helper functions
 func writeJSON(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func writeError(w http.ResponseWriter, message string, code int) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(MessageResponse{
+	w.WriteHeader(code)
+	if err := json.NewEncoder(w).Encode(MessageResponse{
 		Status:  code,
 		Message: message,
-	})
-	w.WriteHeader(code)
+	}); err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }

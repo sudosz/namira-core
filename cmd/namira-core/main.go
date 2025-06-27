@@ -39,7 +39,6 @@ var (
 	timeout       time.Duration
 	maxConcurrent int
 	checkHost     string
-	encryptionKey string
 
 	cfg         *config.Config
 	updater     *github.Updater
