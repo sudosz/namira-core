@@ -4,7 +4,6 @@ import (
 	"runtime"
 	"sort"
 	"sync"
-	"syscall"
 	"time"
 
 	"slices"
@@ -57,21 +56,6 @@ type CoreOpts struct {
 	RemarkTemplate     *RemarkTemplate
 }
 
-func getSystemFDLimit() int {
-	var rlim syscall.Rlimit
-	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlim)
-	if err != nil {
-		return 10000
-	}
-
-	limit := int(rlim.Cur)
-	if limit > 100000 {
-		limit = 100000
-	}
-
-	return limit
-}
-
 func calculateMaxConcurrent() int {
 	numCPU := runtime.NumCPU()
 
@@ -84,10 +68,7 @@ func calculateMaxConcurrent() int {
 	cpuBasedLimit := numCPU * basePerCPU
 
 	memoryBasedLimit := int(availableMemMB * 1024)
-	maxConcurrent := cpuBasedLimit
-	if memoryBasedLimit < maxConcurrent {
-		maxConcurrent = memoryBasedLimit
-	}
+	maxConcurrent := min(memoryBasedLimit, cpuBasedLimit)
 
 	minLimit := 100
 	maxLimit := getSystemFDLimit()
