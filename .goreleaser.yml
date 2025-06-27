@@ -130,11 +130,15 @@ homebrew_casks:
       name: homebrew-tap
     homepage: "https://github.com/NamiraNet/namira-core"
     description: "High-performance VPN configuration checker and validator"
-    license: "AGPL-3.0"
-    install: |
-      bin.install "namira-core"
-    test: |
-      system "#{bin}/namira-core", "--version"
+    hooks:
+      post:
+        install: |
+          bin.install "namira-core"
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/namira-core"]
+          end
+    dependencies:
+      - formula: git
 
 nfpms:
   - id: packages
