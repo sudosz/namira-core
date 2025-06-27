@@ -50,31 +50,36 @@ checksum:
   algorithm: sha256
 
 changelog:
-  sort: asc
   use: github
-  filters:
-    exclude:
-      - "^test:"
-      - "^ci:"
-      - "^style:"
+  sort: asc
+  abbrev: 0
   groups:
-    - title: "🚀 Features"
-      regexp: "^.*feat[(\\w)]*:+.*$"
+    - title: '🚀 Features'
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
       order: 0
-    - title: "🐛 Bug Fixes"
-      regexp: "^.*fix[(\\w)]*:+.*$"
-      order: 1 
-    - title: "⚡ Enhancements"
-      regexp: "^.*chore[(\\w)]*:+.*$"
+    - title: '🐛 Bug Fixes'
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: '📚 Documentation'
+      regexp: '^.*?docs(\(.+\))??!?:.+$'
       order: 2
     - title: "🔧 Improvements"
       regexp: "^.*refactor[(\\w)]*:+.*$"
       order: 3
+    - title: '🔧 Maintenance'
+      regexp: '^.*?(build|ci|chore)(\(.+\))??!?:.+$'
+      order: 4
     - title: "📚 Documentation"
       regexp: "^.*docs?[(\\w)]*:+.*$"
-      order: 4
+      order: 5
     - title: "Others"
       order: 999
+  filters:
+    exclude:
+      - '^test:'
+      - '^style:'
+      - Merge pull request
+      - Merge branch
 
 release:
   github:
@@ -89,26 +94,47 @@ release:
     
     **Release Date:** {{ .Date }}
     
+    High-performance proxy configuration checker and validator.
     ### 📦 Installation
     
+    #### Quick Install (Linux/macOS)
     
-    # Linux/macOS
-    curl -sSL https://github.com/NamiraNet/namira-core/releases/download/{{ .Tag }}/{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}.tar.gz | tar -xz
+    # Download and install latest version
+    curl -sSL "https://github.com/NamiraNet/namira-core/releases/download/{{ .Tag }}/namira-core_{{ .Version }}_$(uname -s)_$(uname -m).tar.gz" | tar -xz
+    chmod +x namira-core
+    sudo mv namira-core /usr/local/bin/
     
-    # Or download directly from assets below
+    # Or download binary directly from assets below
+  
+    
+    ### Docker
+    
+    
+    docker run --rm -p 8080:8080 ghcr.io/namiranet/namira-core:{{ .Version }}
     
     
     ### 🚀 Quick Start
     
     
-    ./namira-core api --port 8080
+    # Start API server
+    namira-core api --port 8080
+    
+    # Check health
+    curl http://localhost:8080/health
+    
+    # Test configurations
+    curl -X POST http://localhost:8080/scan \
+      -H "Content-Type: application/json" \
+      -d '{"configs": ["vmess://..."]}'
+    
+    ### What's New
     
   footer: |
     ---
     
-    **Full Changelog**: https://github.com/NamiraNet/namira-core/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Checksums**: `checksums.txt` • **Docker**: `ghcr.io/namiranet/namira-core:{{ .Version }}`
     
-    💡 **Need help?** Check our [documentation](https://github.com/NamiraNet/namira-core#readme) or [open an issue](https://github.com/NamiraNet/namira-core/issues/new).
+    [📖 Docs](https://github.com/NamiraNet/namira-core#readme) • [🐛 Issues](https://github.com/NamiraNet/namira-core/issues) • [💬 Discussions](https://github.com/NamiraNet/namira-core/discussions)
 
 dockers:
   - image_templates:
