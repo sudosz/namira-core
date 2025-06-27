@@ -113,7 +113,7 @@ dockers:
   - image_templates:
       - "ghcr.io/namiranet/namira-core:{{ .Version }}"
       - "ghcr.io/namiranet/namira-core:latest"
-    dockerfile: Dockerfile
+    dockerfile: Dockerfile.goreleaser
     build_flag_templates:
       - "--pull"
       - "--label=org.opencontainers.image.created={{ .Date }}"
