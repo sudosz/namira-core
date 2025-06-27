@@ -83,8 +83,7 @@ changelog:
 
 release:
   github:
-    # owner: NamiraNet
-    owner: sudosz
+    owner: NamiraNet
     name: namira-core
   draft: false
   prerelease: auto
@@ -145,10 +144,8 @@ release:
 
 dockers:
   - image_templates:
-      # - "ghcr.io/namiranet/namira-core:{{ .Version }}"
-      # - "ghcr.io/namiranet/namira-core:latest"
-      - "ghcr.io/sudosz/namira-core:{{ .Version }}"
-      - "ghcr.io/sudosz/namira-core:latest"
+      - "ghcr.io/namiranet/namira-core:{{ .Version }}"
+      - "ghcr.io/namiranet/namira-core:latest"
     dockerfile: Dockerfile.goreleaser
     build_flag_templates:
       - "--pull"
@@ -156,8 +153,7 @@ dockers:
       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
       - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
       - "--label=org.opencontainers.image.version={{ .Version }}"
-      # - "--label=org.opencontainers.image.source=https://github.com/NamiraNet/namira-core"
-      - "--label=org.opencontainers.image.source=https://github.com/sudosz/namira-core"
+      - "--label=org.opencontainers.image.source=https://github.com/NamiraNet/namira-core"
       - "--platform=linux/amd64"
 
 
