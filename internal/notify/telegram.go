@@ -25,10 +25,10 @@ type Telegram struct {
 
 func NewTelegram(botToken, channel, template, qrConfig string, client *http.Client) *Telegram {
 	t := &Telegram{
-		BotToken: botToken,
-		Channel:  channel,
-		Template: template,
-		Client:   client,
+		BotToken:    botToken,
+		Channel:     channel,
+		Template:    template,
+		Client:      client,
 		qrGenerator: qr.NewQRGenerator(qrConfig),
 	}
 	t.initTemplate()
@@ -101,7 +101,7 @@ func (t *Telegram) Send(result core.CheckResult) error {
 		return fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, 
+	req, err := http.NewRequest(http.MethodPost,
 		"https://api.telegram.org/bot"+t.BotToken+"/sendMessage",
 		bytes.NewBuffer(jsonData))
 	if err != nil {

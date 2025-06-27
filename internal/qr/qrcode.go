@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	qrAPIURL = "https://api.qrcode-monkey.com/qr/custom"
-	defaultSize = "1024"
+	qrAPIURL      = "https://api.qrcode-monkey.com/qr/custom"
+	defaultSize   = "1024"
 	defaultFormat = "png"
 )
 
