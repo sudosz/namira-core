@@ -1,6 +1,6 @@
 # Namira Core
 
-[![Go Version](https://img.shields.io/badge/go-1.21+-blue.svg)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/go-1.24+-blue.svg)](https://golang.org)
 [![Docker](https://img.shields.io/badge/docker-20.10+-blue.svg)](https://www.docker.com)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -9,7 +9,7 @@ A high-performance, self-hosted quality assurance toolkit for VPN proxy configur
 ## 🚀 Features
 
 - **Multi-Protocol Support**: Validates VMess, VLESS, Shadowsocks, and Trojan VPN configurations
-- **Real Connectivity Testing**: Performs actual TCP handshakes, not just ping tests
+- **Real Connection Testing**: Uses real TCP handshakes, not just pings
 - **High Concurrency**: Dynamically adjusts concurrent connection limits based on system resources
 - **API Server**: RESTful API for checking VPN configurations
 - **Notification System**: Integrated Telegram notifications for valid configurations
@@ -115,7 +115,7 @@ The application is structured with clean separation of concerns:
 
 ## 📋 Requirements
 
-- **Go 1.21+**
+- **Go 1.24+**
 - **Redis 7.2+**
 - **GitHub SSH key** (for GitHub integration)
 - **Docker and Docker Compose** (for containerized deployment)
@@ -152,12 +152,12 @@ The application is configured via environment variables:
 |----------|---------|-------------|
 | GITHUB_OWNER | - | GitHub repository owner |
 | GITHUB_REPO | - | GitHub repository name |
-| SSH_KEY_PATH | ./keys/github_deploy_key | Path to GitHub SSH key |
+| SSH_KEY_PATH | ./keys/github_deploy_key | Path to GitHub SSH key for pushing result in github repo |
 
 ### App Configuration
 | Variable | Default | Description |
 |----------|---------|-------------|
-| LOG_LEVEL | info | Logging level (debug, info, warn, error) |
+| LOG_LEVEL | info | Logging level **(debug, info, warn, error)** |
 | APP_TIMEOUT | 10s | Connection timeout per proxy test |
 | MAX_CONCURRENT | 50 | Maximum concurrent connections |
 | ENCRYPTION_KEY | - | Key for encrypting sensitive data |
@@ -166,7 +166,7 @@ The application is configured via environment variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | TELEGRAM_BOT_TOKEN | - | Telegram bot token |
-| TELEGRAM_CHANNEL | - | Telegram channel username or ID |
+| TELEGRAM_CHANNEL | - | Telegram channel username or ID for forwarding |
 | TELEGRAM_TEMPLATE | - | Template for Telegram messages |
 | TELEGRAM_QR_CONFIG | - | QR configuration for Telegram |
 | TELEGRAM_PROXY_URL | - | Proxy URL for Telegram |
@@ -249,8 +249,8 @@ lint                 Run linters
 logs                 View Docker Compose logs
 prod                 Start production environment with Docker Compose
 run-local            Run the application locally
-test                 Run all tests ---------------------------- Coming Soon --------------------------------
-test-coverage        Run tests with coverage ----------------------------- Coming Soon -------------------------
+test                 Run all tests / Coming Soon 
+test-coverage        Run tests with coverage / Coming Soon 
 up                   Start Docker Compose services
 ```
 
@@ -332,6 +332,17 @@ curl -X POST http://localhost:8080/scan \
 curl -X GET http://localhost:8080/jobs/{job_id}
 ```
 
+
+## 🧾 Swagger Documentation
+
+Namira Core provides OpenAPI-compliant documentation to help you explore and interact with the API.
+
+### 📁 Swagger Files Location
+
+* `docs/swagger.yaml` – OpenAPI specification in YAML format
+* `docs/swagger.json` – OpenAPI specification in JSON format
+* `swagger.go` – Go-based embedded Swagger handler for serving docs via the API
+
 ## 🛠️ Troubleshooting
 
 ### Common Issues
@@ -350,78 +361,6 @@ Enable debug logging:
 export LOG_LEVEL=debug
 ./bin/namira-core api
 ```
-## 📁 Project Structure
-```
-namira-core/
-├── cmd/                    # Application entry points
-│   └── namira-core/        # Main application
-│       ├── api.go          # API server implementation
-│       └── main.go         # Application entry point
-├── internal/               # Private application code
-│   ├── api/                # API handlers and routes
-│   │   ├── handler.go      # HTTP handlers
-│   │   ├── router.go       # Route definitions
-│   │   └── types.go        # API types
-│   ├── config/             # Configuration management
-│   │   └── config.go       # Configuration logic
-│   ├── core/               # Core business logic
-│   │   ├── checker/        # Connection checkers
-│   │   │   └── v2ray.go    # V2Ray checker
-│   │   ├── parser/         # Protocol parsers
-│   │   │   ├── parser.go   # Base parser
-│   │   │   ├── ss.go       # Shadowsocks parser
-│   │   │   ├── trojan.go   # Trojan parser
-│   │   │   ├── vless.go    # VLESS parser
-│   │   │   └── vmess.go    # VMess parser
-│   │   ├── core.go         # Core functionality
-│   │   ├── filler.go       # Data filler
-│   │   ├── syscall.go      # System calls
-│   │   └── syscall_windows.go # Windows-specific syscalls
-│   ├── crypto/             # Cryptographic utilities
-│   │   └── aes.go          # AES encryption
-│   ├── github/             # GitHub integration
-│   │   └── updater.go      # Update checker
-│   ├── logger/             # Logging utilities
-│   │   └── logger.go       # Logger implementation
-│   ├── notify/             # Notification system
-│   │   ├── notifier.go     # Base notifier
-│   │   └── telegram.go     # Telegram notifications
-│   ├── qr/                 # QR Code generation
-│   │   └── qrcode.go       # QR code logic
-│   └── worker/             # Background job processing
-│       ├── pool.go         # Worker pool
-│       ├── types.go        # Worker types
-│       └── worker.go       # Worker implementation
-├── .github/                # GitHub templates and workflows
-│   ├── actions/            # Custom GitHub Actions
-│   │   └── create-failure-issue/
-│   │       └── action.yml  # Failure issue creation action
-│   ├── ISSUE_TEMPLATE/     # Issue templates
-│   │   ├── bug_report.md   # Bug report template
-│   │   └── feature_request.md # Feature request template
-│   ├── workflows/          # GitHub Actions workflows
-│   │   ├── auto-close-issues.yml # Auto-close workflow
-│   │   ├── ci.yml          # Continuous integration
-│   │   └── release.yml     # Release workflow
-│   └── PULL_REQUEST_TEMPLATE.md # PR template
-├── .env.example            # Example environment variables
-├── .gitignore              # Git ignore rules
-├── .goreleaser.yml         # GoReleaser configuration
-├── CODE_OF_CONDUCT.md      # Code of conduct
-├── CONTRIBUTING.md         # Contributing guidelines
-├── docker-compose.prod.yml # Production Docker Compose
-├── docker-compose.yml      # Development Docker Compose
-├── Dockerfile              # Docker build instructions
-├── Dockerfile.goreleaser   # GoReleaser Docker build
-├── go.mod                  # Go module definition
-├── go.sum                  # Go module checksums
-├── LICENCE                 # License file
-├── Makefile                # Build automation
-├── project_tree.txt        # Project structure reference
-├── README.md               # Project documentation
-└── test.md                 # Test documentation
-```
-
 
 ## 🤝 Contributing
 
