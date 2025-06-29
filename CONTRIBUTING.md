@@ -50,7 +50,7 @@ The following is a set of guidelines for contributing to the project. These guid
 
 ## Coding Guidelines
 
-* Use **Go 1.22** or later.
+* Use **Go 1.24** or later.
 * Keep functions short and focused (≤ 50 LOC recommended).
 * Document exported symbols with GoDoc comments.
 * Prefer composition over inheritance; avoid global state.
