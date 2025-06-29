@@ -8,14 +8,17 @@ The following is a set of guidelines for contributing to the project. These guid
 
 ## Table of Contents
 
-1. [Getting Started](#getting-started)
-2. [Bug Reports](#bug-reports)
-3. [Feature Requests](#feature-requests)
-4. [Pull Requests](#pull-requests)
-5. [Coding Guidelines](#coding-guidelines)
-6. [Commit Message Format](#commit-message-format)
-7. [Running Tests](#running-tests)
-8. [Code of Conduct](#code-of-conduct)
+- [Contributing to Namira Core](#contributing-to-namira-core)
+  - [Table of Contents](#table-of-contents)
+  - [Getting Started](#getting-started)
+  - [Bug Reports](#bug-reports)
+  - [Feature Requests](#feature-requests)
+  - [Pull Requests](#pull-requests)
+  - [Coding Guidelines](#coding-guidelines)
+  - [Commit Message Format](#commit-message-format)
+  - [Running Tests](#running-tests)
+      - [notice : For Now We Dont Have Tests . its just PlaceHolder](#notice--for-now-we-dont-have-tests--its-just-placeholder)
+  - [Code of Conduct](#code-of-conduct)
 
 ---
 
@@ -71,6 +74,12 @@ Common `<type>` values:
 * **docs** – documentation only
 * **test** – adding or refactoring tests
 * **chore** – build process, CI, tooling
+* **refactor** – code changes that neither fix a bug nor add a feature
+* **style** – formatting, missing semi colons, etc; no code logic changes
+* **perf** – performance improvements
+* **revert** – reverts a previous commit
+* **build** – changes that affect the build system or external dependencies
+* **ci** – changes to CI configuration files and scripts
 
 Example:
 
@@ -83,7 +92,7 @@ feat(api): add Telegram notification hook
 #### notice : For Now We Dont Have Tests . its just PlaceHolder 
 ```bash
 make test      # unit tests 
-make coverage  # generate coverage report
+make test-coverage  # generate coverage report
 ```
 
 ## Code of Conduct
