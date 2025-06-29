@@ -2,7 +2,7 @@
 
 [![Go Version](https://img.shields.io/badge/go-1.24+-blue.svg)](https://golang.org)
 [![Docker](https://img.shields.io/badge/docker-20.10+-blue.svg)](https://www.docker.com)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL3-green.svg)](LICENSE)
 
 A high-performance, self-hosted quality assurance toolkit for VPN proxy configurations. Namira Core validates, benchmarks, and ranks VMess, VLESS, Trojan, and Shadowsocks connections with real TCP handshakes and latency measurements.
 
@@ -385,7 +385,7 @@ make dev
 
 ## 📄 License
 
-Distributed under the **MIT License**. See [LICENSE](LICENSE) for full text.
+Distributed under the **AGPL-3 License**. See [LICENSE](LICENSE) for full text.
 
 ## 🙏 Acknowledgments
 
