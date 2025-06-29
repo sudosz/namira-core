@@ -1,0 +1,536 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Namira Core API",
+    "description": "A RESTful API service for scanning and validating v2/xray proxy configurations.\n\n## Features\n- Asynchronous proxy scanning jobs\n- Support for multiple proxy protocols\n- Flexible input formats (JSON and plain text)\n- Job status monitoring\n\n## Supported Proxy Protocols\n- vmess://\n- vless://\n- trojan://\n- ss://\n",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support",
+      "email": "namairanet@proton.me"
+    },
+    "license": {
+      "name": "AGPL-3.0",
+      "url": "https://opensource.org/license/agpl-v3"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.example.com",
+      "description": "Production server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "health",
+      "description": "Health check operations"
+    },
+    {
+      "name": "scanning",
+      "description": "Proxy scanning operations"
+    },
+    {
+      "name": "jobs",
+      "description": "Job management operations"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["health"],
+        "summary": "Health Check",
+        "description": "Returns the current health status of the service",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service is unhealthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "unhealthy"
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Database connection failed"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scan": {
+      "post": {
+        "tags": ["scanning"],
+        "summary": "Start Asynchronous Proxy Scanning Job",
+        "description": "Initiates a background job to scan and validate proxy configurations.\n\nSupports three input formats:\n1. **JSON format**: Submit configs as a JSON array\n2. **Plain text format**: Submit configs as newline-separated text\n3. **File upload**: Upload a text file with configs (multipart/form-data)\n",
+        "operationId": "startScan",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["configs"],
+                "properties": {
+                  "configs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Array of proxy configuration URLs",
+                    "example": [
+                      "vmess://eyJhZGQiOiIxMjcuMC4wLjEiLCJhaWQiOiIwIiwiaG9zdCI6IiIsImlkIjoiYWJjZGVmZ2giLCJuZXQiOiJ0Y3AiLCJwYXRoIjoiIiwicG9ydCI6IjEwODAiLCJwcyI6IlRlc3QgU2VydmVyIiwic2N5IjoiYXV0byIsInNuaSI6IiIsInRscyI6IiIsInR5cGUiOiJub25lIiwidiI6IjIifQ==",
+                      "vless://12345678-1234-1234-1234-123456789abc@example.com:443?encryption=none&security=tls&type=ws&host=example.com&path=%2Fpath#Test%20VLESS"
+                    ]
+                  }
+                }
+              },
+              "examples": {
+                "multiple_configs": {
+                  "summary": "Multiple proxy configurations",
+                  "value": {
+                    "configs": [
+                      "vmess://eyJhZGQiOiIxMjcuMC4wLjEiLCJhaWQiOiIwIiwiaG9zdCI6IiIsImlkIjoiYWJjZGVmZ2giLCJuZXQiOiJ0Y3AiLCJwYXRoIjoiIiwicG9ydCI6IjEwODAiLCJwcyI6IlRlc3QgU2VydmVyIiwic2N5IjoiYXV0byIsInNuaSI6IiIsInRscyI6IiIsInR5cGUiOiJub25lIiwidiI6IjIifQ==",
+                      "vless://12345678-1234-1234-1234-123456789abc@example.com:443?encryption=none&security=tls&type=ws&host=example.com&path=%2Fpath#Test%20VLESS",
+                      "trojan://password123@example.com:443?security=tls&type=tcp&headerType=none#Test%20Trojan"
+                    ]
+                  }
+                }
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Text file containing proxy configurations (one per line)"
+                  }
+                },
+                "required": ["file"]
+              }
+            },
+            "text/plain": {
+              "schema": {
+                "type": "string",
+                "description": "Newline-separated proxy configuration URLs",
+                "example": "vmess://eyJhZGQiOiIxMjcuMC4wLjEiLCJhaWQiOiIwIiwiaG9zdCI6IiIsImlkIjoiYWJjZGVmZ2giLCJuZXQiOiJ0Y3AiLCJwYXRoIjoiIiwicG9ydCI6IjEwODAiLCJwcyI6IlRlc3QgU2VydmVyIiwic2N5IjoiYXV0byIsInNuaSI6IiIsInRscyI6IiIsInR5cGUiOiJub25lIiwidiI6IjIifQ==\nvless://12345678-1234-1234-1234-123456789abc@example.com:443?encryption=none&security=tls&type=ws&host=example.com&path=%2Fpath#Test%20VLESS\ntrojan://password123@example.com:443?security=tls&type=tcp&headerType=none#Test%20Trojan"
+              },
+              "examples": {
+                "plain_text_configs": {
+                  "summary": "Plain text format with multiple protocols",
+                  "value": "vmess://eyJhZGQiOiIxMjcuMC4wLjEiLCJhaWQiOiIwIiwiaG9zdCI6IiIsImlkIjoiYWJjZGVmZ2giLCJuZXQiOiJ0Y3AiLCJwYXRoIjoiIiwicG9ydCI6IjEwODAiLCJwcyI6IlRlc3QgU2VydmVyIiwic2N5IjoiYXV0byIsInNuaSI6IiIsInRscyI6IiIsInR5cGUiOiJub25lIiwidiI6IjIifQ==\nvless://12345678-1234-1234-1234-123456789abc@example.com:443?encryption=none&security=tls&type=ws&host=example.com&path=%2Fpath#Test%20VLESS\ntrojan://password123@example.com:443?security=tls&type=tcp&headerType=none#Test%20Trojan"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Scan job successfully started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "JobID": {
+                      "type": "string",
+                      "description": "Unique identifier for the scanning job",
+                      "example": "job_12345abcde"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - Invalid input format or empty configs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                },
+                "examples": {
+                  "invalid_json": {
+                    "summary": "Invalid JSON format",
+                    "value": {
+                      "Status": 400,
+                      "Message": "Invalid JSON"
+                    }
+                  },
+                  "empty_configs": {
+                    "summary": "Empty configurations",
+                    "value": {
+                      "Status": 400,
+                      "Message": "No configs provided"
+                    }
+                  },
+                  "duplicate_configs": {
+                    "summary": "All configurations are duplicates",
+                    "value": {
+                      "Status": 400,
+                      "Message": "All configs are duplicates"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                },
+                "examples": {
+                  "filter_error": {
+                    "summary": "Failed to filter duplicates",
+                    "value": {
+                      "Status": 500,
+                      "Message": "Failed to filter duplicates"
+                    }
+                  },
+                  "task_submit_error": {
+                    "summary": "Failed to submit task",
+                    "value": {
+                      "Status": 500,
+                      "Message": "Failed to submit task"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/job/{id}": {
+      "get": {
+        "tags": ["jobs"],
+        "summary": "Get Job Status",
+        "description": "Retrieve the current status and results of a scanning job",
+        "operationId": "getJobStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier of the scanning job",
+            "schema": {
+              "type": "string"
+            },
+            "example": "job_12345abcde"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job status retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                },
+                "examples": {
+                  "completed_job": {
+                    "summary": "Completed job with results",
+                    "value": {
+                      "ID": "job_12345abcde",
+                      "TotalCount": 3,
+                      "DoneCount": 3,
+                      "ValidCount": 2,
+                      "Status": "completed",
+                      "StartTime": "2024-01-15T10:30:00Z",
+                      "EndTime": "2024-01-15T10:32:15Z",
+                      "Results": {
+                        "hash123": {
+                          "Index": 0,
+                          "Status": "success",
+                          "Delay": 125
+                        },
+                        "hash456": {
+                          "Index": 1,
+                          "Status": "success",
+                          "Delay": 89
+                        }
+                      },
+                      "Error": null
+                    }
+                  },
+                  "running_job": {
+                    "summary": "Job currently running",
+                    "value": {
+                      "ID": "job_67890fghij",
+                      "TotalCount": 10,
+                      "DoneCount": 6,
+                      "ValidCount": 4,
+                      "Status": "running",
+                      "StartTime": "2024-01-15T10:30:00Z",
+                      "EndTime": null,
+                      "Results": {
+                        "hash789": {
+                          "Index": 0,
+                          "Status": "success",
+                          "Delay": 95
+                        }
+                      },
+                      "Error": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                },
+                "example": {
+                  "Status": 404,
+                  "Message": "Job not found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "MessageResponse": {
+        "type": "object",
+        "required": ["Status", "Message"],
+        "properties": {
+          "Status": {
+            "type": "integer",
+            "description": "HTTP status code",
+            "example": 400
+          },
+          "Message": {
+            "type": "string",
+            "description": "Error or status message",
+            "example": "No configs provided"
+          }
+        }
+      },
+      "ScanResponse": {
+        "type": "object",
+        "required": ["JobID"],
+        "properties": {
+          "JobID": {
+            "type": "string",
+            "description": "Unique identifier for the scanning job",
+            "example": "job_12345abcde"
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "Status": {
+            "type": "string",
+            "description": "Service health status",
+            "example": "ok"
+          },
+          "Version": {
+            "type": "string",
+            "description": "API version",
+            "example": "1.0.0"
+          },
+          "WorkerPool": {
+            "$ref": "#/components/schemas/WorkerPoolStatus"
+          }
+        }
+      },
+      "WorkerPoolStatus": {
+        "type": "object",
+        "properties": {
+          "WorkerCount": {
+            "type": "integer",
+            "description": "Number of active workers",
+            "example": 10
+          },
+          "TotalTasks": {
+            "type": "integer",
+            "description": "Total number of tasks processed",
+            "example": 1250
+          },
+          "CompletedTasks": {
+            "type": "integer",
+            "description": "Number of completed tasks",
+            "example": 1200
+          },
+          "FailedTasks": {
+            "type": "integer",
+            "description": "Number of failed tasks",
+            "example": 50
+          },
+          "QueueLength": {
+            "type": "integer",
+            "description": "Current queue length",
+            "example": 5
+          },
+          "IsRunning": {
+            "type": "boolean",
+            "description": "Whether the worker pool is running",
+            "example": true
+          },
+          "Uptime": {
+            "type": "string",
+            "description": "Worker pool uptime",
+            "example": "2h30m15s"
+          }
+        }
+      },
+      "Job": {
+        "type": "object",
+        "properties": {
+          "ID": {
+            "type": "string",
+            "description": "Unique job identifier",
+            "example": "job_12345abcde"
+          },
+          "TotalCount": {
+            "type": "integer",
+            "description": "Total number of configurations to process",
+            "example": 10
+          },
+          "DoneCount": {
+            "type": "integer",
+            "description": "Number of configurations processed",
+            "example": 8
+          },
+          "ValidCount": {
+            "type": "integer",
+            "description": "Number of valid configurations found",
+            "example": 6
+          },
+          "Status": {
+            "type": "string",
+            "enum": ["pending", "running", "completed", "failed"],
+            "description": "Current job status",
+            "example": "running"
+          },
+          "StartTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Job start timestamp",
+            "example": "2024-01-15T10:30:00Z"
+          },
+          "EndTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Job completion timestamp (null if not completed)",
+            "example": "2024-01-15T10:32:15Z"
+          },
+          "Results": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CheckResult"
+            },
+            "description": "Map of configuration hash to check results",
+            "example": {
+              "hash123": {
+                "Index": 0,
+                "Status": "success",
+                "Delay": 125
+              }
+            }
+          },
+          "Error": {
+            "type": "string",
+            "description": "Error message if job failed",
+            "example": null
+          }
+        }
+      },
+      "CheckResult": {
+        "type": "object",
+        "properties": {
+          "Index": {
+            "type": "integer",
+            "description": "Index of the configuration in the original list",
+            "example": 0
+          },
+          "Status": {
+            "type": "string",
+            "description": "Status of the configuration check",
+            "example": "success"
+          },
+          "Delay": {
+            "type": "integer",
+            "description": "Response delay in milliseconds",
+            "example": 125
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["Status", "Message"],
+        "properties": {
+          "Status": {
+            "type": "integer",
+            "description": "HTTP status code",
+            "example": 400
+          },
+          "Message": {
+            "type": "string",
+            "description": "Error message",
+            "example": "Invalid request format"
+          }
+        }
+      }
+    },
+    "examples": {
+      "ProxyConfigsJSON": {
+        "summary": "JSON format with multiple proxy types",
+        "value": {
+          "configs": [
+            "vmess://eyJhZGQiOiIxMjcuMC4wLjEiLCJhaWQiOiIwIiwiaG9zdCI6IiIsImlkIjoiYWJjZGVmZ2giLCJuZXQiOiJ0Y3AiLCJwYXRoIjoiIiwicG9ydCI6IjEwODAiLCJwcyI6IlRlc3QgU2VydmVyIiwic2N5IjoiYXV0byIsInNuaSI6IiIsInRscyI6IiIsInR5cGUiOiJub25lIiwidiI6IjIifQ==",
+            "vless://12345678-1234-1234-1234-123456789abc@example.com:443?encryption=none&security=tls&type=ws&host=example.com&path=%2Fpath#Test%20VLESS",
+            "trojan://password123@example.com:443?security=tls&type=tcp&headerType=none#Test%20Trojan"
+          ]
+        }
+      },
+      "ProxyConfigsPlainText": {
+        "summary": "Plain text format",
+        "value": "vmess://eyJhZGQiOiIxMjcuMC4wLjEiLCJhaWQiOiIwIiwiaG9zdCI6IiIsImlkIjoiYWJjZGVmZ2giLCJuZXQiOiJ0Y3AiLCJwYXRoIjoiIiwicG9ydCI6IjEwODAiLCJwcyI6IlRlc3QgU2VydmVyIiwic2N5IjoiYXV0byIsInNuaSI6IiIsInRscyI6IiIsInR5cGUiOiJub25lIiwidiI6IjIifQ==\nvless://12345678-1234-1234-1234-123456789abc@example.com:443?encryption=none&security=tls&type=ws&host=example.com&path=%2Fpath#Test%20VLESS\ntrojan://password123@example.com:443?security=tls&type=tcp&headerType=none#Test%20Trojan"
+      }
+    }
+  }
+}
