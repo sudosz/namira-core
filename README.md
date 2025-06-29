@@ -341,7 +341,7 @@ Namira Core provides OpenAPI-compliant documentation to help you explore and int
 
 * `docs/swagger.yaml` – OpenAPI specification in YAML format
 * `docs/swagger.json` – OpenAPI specification in JSON format
-* `swagger.go` – Go-based embedded Swagger handler for serving docs via the API
+* `docs/docs.go` – Go-based embedded Swagger handler for serving docs via the API
 
 ## 🛠️ Troubleshooting
 
