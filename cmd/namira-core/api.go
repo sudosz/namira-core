@@ -39,9 +39,7 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 	defer func() {
-		if syncErr := logger.Sync(); syncErr != nil {
-			fmt.Printf("Failed to sync logger: %v\n", syncErr)
-		}
+		_ = logger.Sync()
 	}()
 
 	// Use global config, but allow CLI flags to override

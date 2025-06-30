@@ -45,9 +45,7 @@ func runCli(cmd *cobra.Command, args []string) {
 		return
 	}
 	defer func() {
-		if syncErr := logger.Sync(); syncErr != nil {
-			fmt.Printf("Failed to sync logger: %v\n", syncErr)
-		}
+		_ = logger.Sync()
 	}()
 
 	var configs []string
