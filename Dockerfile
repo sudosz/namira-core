@@ -18,7 +18,7 @@ ARG COMMIT_SHA
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build \
     -trimpath \
-    -ldflags="-w -s -X main.version=${VERSION} -X main.build=${BUILD_DATE} -X main.commit=${COMMIT_SHA}" \
+    -ldflags="-w -s -X main.version=${VERSION} -X main.commit=${COMMIT_SHA} -X main.date=${BUILD_DATE}" \
     -tags=netgo,osusergo \
     -o /app/namira-core \
     ./cmd/namira-core/ \
