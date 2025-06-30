@@ -399,6 +399,9 @@ Distributed under the **AGPL-3 License**. See [LICENSE](LICENSE) for full text.
 * **Email**: NamiraNet [at] proton.me
 * **GitHub Discussions**: open to all "how-do-I" questions.
 
+## Stargazers over time
+[![Stargazers over time](https://starchart.cc/NaMiraNet/namira-core.svg?variant=adaptive)](https://starchart.cc/NaMiraNet/namira-core)
+
 ---
 
 <h3 align='center'> 🤝 Contributors </h3>
