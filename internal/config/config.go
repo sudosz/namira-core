@@ -32,9 +32,10 @@ type WorkerConfig struct {
 }
 
 type RedisConfig struct {
-	Addr     string
-	Password string
-	DB       int
+	Addr      string
+	Password  string
+	DB        int
+	ResultTTL time.Duration
 }
 
 type GithubConfig struct {
@@ -75,9 +76,10 @@ func Load() *Config {
 			QueueSize: getEnvInt("WORKER_QUEUE_SIZE", 100),
 		},
 		Redis: RedisConfig{
-			Addr:     getEnv("REDIS_ADDR", "localhost:6379"),
-			Password: getEnv("REDIS_PASSWORD", ""),
-			DB:       getEnvInt("REDIS_DB", 0),
+			Addr:      getEnv("REDIS_ADDR", "localhost:6379"),
+			Password:  getEnv("REDIS_PASSWORD", ""),
+			DB:        getEnvInt("REDIS_DB", 0),
+			ResultTTL: getEnvDuration("REDIS_RESULT_TTL", time.Hour),
 		},
 		Github: GithubConfig{
 			SSHKeyPath: getEnv("GITHUB_SSH_KEY_PATH", ""),
