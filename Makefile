@@ -1,16 +1,23 @@
 # Makefile for Namira Core
 
-.PHONY: build up down logs clean dev prod health test lint help install run-local docker-build docker-push
+.PHONY: build up down logs clean dev prod health test lint help install run-local docker-build docker-push version
 .DEFAULT_GOAL := help
 
-# Variables
-VERSION ?= $(shell git describe --tags --always --dirty)
+# Version info
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
-COMMIT_SHA ?= $(shell git rev-parse --short HEAD)
+COMMIT_SHA ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GO_FILES := $(shell find . -name "*.go" -type f -not -path "./vendor/*")
 APP_NAME := namira-core
 BINARY := ./bin/$(APP_NAME)
 DOCKER_IMAGE := namiranet/$(APP_NAME)
+
+# Build flags
+LDFLAGS = -ldflags "\
+	-X main.version=$(VERSION) \
+	-X main.commit=$(COMMIT_SHA) \
+	-X main.date=$(BUILD_DATE) \
+	-w -s"
 
 # Common docker-compose command
 DOCKER_COMPOSE := docker-compose
@@ -33,14 +40,20 @@ build: ## Build Docker containers without starting them
 
 # Local Go build
 build-local: ## Build the Go binary locally
-	@echo "Building local binary..."
+	@echo "Building local binary $(VERSION)..."
 	@mkdir -p bin
-	go build -ldflags "-X main.version=$(VERSION) -X main.buildDate=$(BUILD_DATE) -X main.commitSha=$(COMMIT_SHA)" -o $(BINARY) ./cmd/namira
+	go build $(LDFLAGS) -o $(BINARY) ./cmd/namira-core
 
 # Run local binary
 run-local: build-local ## Run the application locally
 	@echo "Running local binary..."
 	$(BINARY)
+
+# Show version info
+version: ## Show version information
+	@echo "Version: $(VERSION)"
+	@echo "Commit:  $(COMMIT_SHA)"
+	@echo "Date:    $(BUILD_DATE)"
 
 # Test targets
 test: ## Run all tests
@@ -92,6 +105,12 @@ docker-push: docker-build ## Build and push Docker image
 	docker push $(DOCKER_IMAGE):$(VERSION)
 	docker push $(DOCKER_IMAGE):latest
 
+# Release build (optimized)
+build-release: ## Build optimized release binary
+	@echo "Building release binary $(VERSION)..."
+	@mkdir -p bin
+	CGO_ENABLED=0 go build $(LDFLAGS) -a -installsuffix cgo -o $(BINARY) ./cmd/namira-core
+
 # Install dependencies
 install: ## Install project dependencies
 	@echo "Installing dependencies..."
@@ -102,6 +121,10 @@ install: ## Install project dependencies
 help: ## Show this help message
 	@echo "Namira Core Makefile"
 	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Version: $(VERSION)"
+	@echo "Commit:  $(COMMIT_SHA)"
+	@echo "Date:    $(BUILD_DATE)"
 	@echo ""
 	@echo "Targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
