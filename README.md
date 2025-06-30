@@ -159,6 +159,7 @@ The application is configured via environment variables:
 | REDIS_ADDR | localhost:6379 | Redis server address |
 | REDIS_PASSWORD | - | Redis password |
 | REDIS_DB | 0 | Redis database number |
+| REDIS_RESULT_TTL | 24h | Redis result TTL |
 
 ### GitHub Configuration
 | Variable | Default | Description |
