@@ -65,13 +65,6 @@ func init() {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
 
-	// Initialize Redis client
-	redisClient = redis.NewClient(&redis.Options{
-		Addr:     cfg.Redis.Addr,
-		Password: cfg.Redis.Password,
-		DB:       cfg.Redis.DB,
-	})
-
 	rootCmd.PersistentFlags().StringVarP(&port, "port", "p", "", "Port to run the service on")
 	rootCmd.PersistentFlags().DurationVarP(&timeout, "timeout", "t", core.DefaultCheckTimeout, "Connection timeout")
 	rootCmd.PersistentFlags().IntVarP(&maxConcurrent, "concurrent", "c", 0, "Maximum concurrent connections")
