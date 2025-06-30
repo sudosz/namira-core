@@ -400,7 +400,7 @@ Distributed under the **AGPL-3 License**. See [LICENSE](LICENSE) for full text.
 * **GitHub Discussions**: open to all "how-do-I" questions.
 
 ## Stargazers over time
-[![Stargazers over time](https://starchart.cc/NaMiraNet/namira-core.svg?variant=adaptive)](https://starchart.cc/NaMiraNet/namira-core)
+[![Stargazers over time](https://starchart.cc/NaMiraNet/namira-core.svg?variant=light)](https://starchart.cc/NaMiraNet/namira-core)
 
 ---
 
