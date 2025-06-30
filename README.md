@@ -250,6 +250,7 @@ Usage: make [target]
 Targets:
 build                Build Docker containers without starting them
 build-local          Build the Go binary locally
+build-release        Build optimized release binary
 clean                Clean up Docker resources and build artifacts
 dev                  Start development environment with Docker Compose
 docker-build         Build Docker image
@@ -265,6 +266,7 @@ run-local            Run the application locally
 test                 Run all tests / Coming Soon 
 test-coverage        Run tests with coverage / Coming Soon 
 up                   Start Docker Compose services
+version              Show version information
 ```
 
 
@@ -275,6 +277,9 @@ The CLI provides a powerful interface for batch checking VPN configurations with
 ### Basic Usage
 
 ```bash
+# Show version
+./bin/namira-core --version
+
 # Display help
 ./bin/namira-core check --help
 
