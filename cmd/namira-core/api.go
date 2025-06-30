@@ -153,6 +153,14 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 		TaskQueueSize: cfg.Worker.QueueSize,
 	})
 
+	versionInfo := api.VersionInfo{
+		Version:   version,
+		Commit:    commit,
+		Date:      date,
+		GoVersion: goVersion,
+		Platform:  platform,
+	}
+
 	router := api.NewRouter(
 		coreInstance,
 		redisClient,
@@ -160,7 +168,8 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 		telegramConfigResultHandler,
 		logger,
 		updater,
-		worker)
+		worker,
+		versionInfo)
 
 	serverAddr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)
 	server := &http.Server{

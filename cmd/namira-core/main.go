@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/NamiraNet/namira-core/internal/config"
@@ -14,25 +13,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Build-time variables (injected via -ldflags)
 var (
-	name    = "namira-core"
-	build   = "Custom"
-	version = "1.0.0"
-)
+	version   = "dev"     // Default for development
+	commit    = "unknown" // Git commit hash
+	date      = "unknown" // Build date
+	goVersion = runtime.Version()
+	platform  = runtime.GOOS + "/" + runtime.GOARCH
 
-// Version returns version
-func Version() string {
-	return version
-}
-
-// VersionStatement returns a list of strings representing the full version info.
-func VersionStatement() string {
-	return strings.Join([]string{
-		name, " ", Version(), " ", build, " (", runtime.Version(), " ", runtime.GOOS, "/", runtime.GOARCH, ")",
-	}, "")
-}
-
-var (
 	port          string
 	timeout       time.Duration
 	maxConcurrent int
@@ -43,15 +31,26 @@ var (
 	redisClient *redis.Client
 )
 
+func getVersionInfo() string {
+	commitHash := commit
+	if len(commit) > 8 {
+		commitHash = commit[:8]
+	}
+	return fmt.Sprintf("namira-core %s (%s) built with %s on %s at %s",
+		version, commitHash, goVersion, platform, date)
+}
+
 var rootCmd = &cobra.Command{
-	Use:   name,
-	Short: "namira-core VPN Link Checker Service",
-	Long:  `A service to check and validate various VPN protocol links including Vmess, Vless, Shadowsocks, and Trojan.`,
+	Use:     "namira-core",
+	Version: version,
+	Short:   "namira-core VPN Link Checker Service",
+	Long:    `A service to check and validate various VPN protocol links including Vmess, Vless, Shadowsocks, and Trojan.`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		fmt.Println(getVersionInfo())
+	},
 }
 
 func init() {
-	fmt.Println(VersionStatement())
-
 	// Load configuration from environment variables
 	cfg = config.Load()
 
@@ -59,7 +58,9 @@ func init() {
 	rootCmd.PersistentFlags().DurationVarP(&timeout, "timeout", "t", core.DefaultCheckTimeout, "Connection timeout")
 	rootCmd.PersistentFlags().IntVarP(&maxConcurrent, "concurrent", "c", 0, "Maximum concurrent connections")
 	rootCmd.PersistentFlags().StringVarP(&checkHost, "host", "H", "", "Host to check")
+	rootCmd.SetVersionTemplate(getVersionInfo() + "\n")
 
+	// Set default values if not provided
 	if cfg.Server.Port == "" {
 		cfg.Server.Port = port
 	}
@@ -73,9 +74,7 @@ func init() {
 		cfg.App.CheckHost = checkHost
 	}
 
-	// Add the API server subcommand
-	rootCmd.AddCommand(apiCmd)
-	rootCmd.AddCommand(checkCmd)
+	rootCmd.AddCommand(apiCmd, checkCmd)
 }
 
 func main() {

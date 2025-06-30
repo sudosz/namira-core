@@ -37,9 +37,10 @@ type Handler struct {
 	logger        *zap.Logger
 	updater       *github.Updater
 	jobsOnSuccess ConfigSuccessHandler
+	versionInfo   VersionInfo
 }
 
-func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, configSuccessHandler ConfigSuccessHandler, logger *zap.Logger, updater *github.Updater, worker *workerpool.WorkerPool) *Handler {
+func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, configSuccessHandler ConfigSuccessHandler, logger *zap.Logger, updater *github.Updater, worker *workerpool.WorkerPool, versionInfo VersionInfo) *Handler {
 	handler := &Handler{
 		core:          c,
 		workerPool:    worker,
@@ -47,6 +48,7 @@ func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler Callbac
 		logger:        logger,
 		updater:       updater,
 		jobsOnSuccess: configSuccessHandler,
+		versionInfo:   versionInfo,
 	}
 
 	worker.SetResultHandler(handler.handleTaskResult(callbackHandler))
@@ -143,7 +145,14 @@ func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
 	stats := h.workerPool.GetStats()
 	writeJSON(w, HealthResponse{
 		Status:  "ok",
-		Version: "1.0.0",
+		Version: h.versionInfo.Version,
+		Build: BuildInfo{
+			Version:   h.versionInfo.Version,
+			Commit:    h.versionInfo.Commit,
+			Date:      h.versionInfo.Date,
+			GoVersion: h.versionInfo.GoVersion,
+			Platform:  h.versionInfo.Platform,
+		},
 		WorkerPool: WorkerPoolStatus{
 			WorkerCount:    stats.WorkerCount,
 			TotalTasks:     stats.TotalTasks,
