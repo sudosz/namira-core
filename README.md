@@ -49,8 +49,21 @@ cp .env.example .env
 # Start the services
 docker-compose up -d
 ```
-
 Access the API at `http://localhost:8080`
+
+### Using CLI
+
+```bash
+# Build the application
+make build-local
+
+# Check VPN configurations from file
+./bin/namira-core check --file proxies.txt
+
+# Check individual configurations
+./bin/namira-core check --config "vmess://..." --config "vless://..."
+```
+
 
 ## 🔄 How It Works
 
@@ -254,6 +267,93 @@ test-coverage        Run tests with coverage / Coming Soon
 up                   Start Docker Compose services
 ```
 
+
+## 💻 CLI Usage
+
+The CLI provides a powerful interface for batch checking VPN configurations without requiring a full server setup.
+
+### Basic Usage
+
+```bash
+# Display help
+./bin/namira-core check --help
+
+# Check configurations from a file
+./bin/namira-core check --file proxies.txt
+
+# Check individual configurations
+./bin/namira-core check --config "vmess://..." --config "vless://..."
+
+# Mix file and individual configs
+./bin/namira-core check --file proxies.txt --config "trojan://..."
+```
+
+### CLI Flags
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--file` | `-i` | - | File containing VPN configurations (one per line) |
+| `--config` | `-c` | - | VPN configuration strings (can be used multiple times) |
+| `--format` | `-f` | `table` | Output format: `table`, `json`, `csv` |
+| `--output` | `-o` | stdout | Output file path |
+| `--progress` | - | `true` | Show progress during checking |
+| `--concurrent` | `-j` | `10` | Maximum concurrent checks |
+| `--timeout` | `-t` | `10s` | Timeout for each check |
+
+
+### CLI Examples
+
+#### Basic File Checking
+```bash
+# Check all configurations in a file
+./bin/namira-core check --file proxies.txt
+
+# Check with custom concurrency and timeout
+./bin/namira-core check --file proxies.txt --concurrent 20 --timeout 15s
+```
+
+#### Individual Configuration Checking
+```bash
+# Check single configuration
+./bin/namira-core check --config "vmess://eyJ2IjoiMiIsInBzIjoi..."
+
+# Check multiple configurations
+./bin/namira-core check \
+  --config "vmess://eyJ2IjoiMiIsInBzIjoi..." \
+  --config "vless://..." \
+  --config "trojan://..."
+```
+
+#### Advanced Usage
+```bash
+# Silent mode with JSON output
+./bin/namira-core check \
+  --file proxies.txt \
+  --format json \
+  --output results.json \
+  --progress false
+
+# High concurrency for large files
+./bin/namira-core check \
+  --file large_proxy_list.txt \
+  --concurrent 50 \
+  --timeout 5s \
+  --format csv \
+  --output report.csv
+```
+
+#### Input File Format
+
+Your input file should contain one VPN configuration per line:
+
+```txt
+vmess://eyJ2IjoiMiIsInBzIjoidGVzdCIsImFkZCI6IjEuMS4xLjEiLCJwb3J0IjoiNDQzIiwiaWQiOiJ0ZXN0LWlkIiwiYWlkIjoiMCIsInNjeSI6ImF1dG8iLCJuZXQiOiJ3cyIsInR5cGUiOiJub25lIiwiaG9zdCI6IiIsInBhdGgiOiIvIiwidGxzIjoidGxzIiwic25pIjoiIn0=
+vless://test-id@2.2.2.2:443?encryption=none&security=tls&type=ws&path=/&host=#test
+trojan://password@3.3.3.3:443?security=tls&type=tcp&headerType=none#test
+ss://YWVzLTI1Ni1nY206cGFzc3dvcmQ@4.4.4.4:8388#test
+```
+
+
 ## 📚 API Documentation
 
 ### Health Check
@@ -317,21 +417,45 @@ GET /jobs/{job_id}
 
 ## 🔍 Example Usage
 
+### CLI Mode
 
-### Start Asynchronous Check Job
+#### Quick Check
+```bash
+# Check a few configurations quickly
+./bin/namira-core check \
+  --config "vmess://..." \
+  --config "vless://..." \
+  --format table
+```
+
+#### Batch Processing
+```bash
+# Process large list with optimal settings
+./bin/namira-core check \
+  --file large_list.txt \
+  --concurrent 30 \
+  --timeout 8s \
+  --format json \
+  --output results.json \
+  --progress
+```
+
+### API Mode
+
+#### Start Asynchronous Scanning
 
 ```bash
 curl -X POST http://localhost:8080/scan \
   -H "Content-Type: application/json" \
+  -H "X-API-KEY: apikey" \
   -d '{"configs": ["vmess://...", "vless://..."]}'
 ```
 
-### Check Job Status
+#### Check Job Status
 
 ```bash
-curl -X GET http://localhost:8080/jobs/{job_id}
+curl -X GET -H "X-API-KEY: apikey" http://localhost:8080/jobs/{job_id}
 ```
-
 
 ## 🧾 Swagger Documentation
 
@@ -360,7 +484,17 @@ Enable debug logging:
 ```bash
 export LOG_LEVEL=debug
 ./bin/namira-core api
+# OR
+./bin/namira-core check --file proxies.txt
 ```
+
+### CLI Specific Issues
+
+| Issue | Solution |
+|-------|----------|
+| "Permission denied" when running binary | Run `chmod +x ./bin/namira-core` |
+| CLI hangs on large files | Reduce `--concurrent` value or increase `--timeout` |
+| Invalid output format | Use one of: `table`, `json`, `csv` |
 
 ## 🤝 Contributing
 
