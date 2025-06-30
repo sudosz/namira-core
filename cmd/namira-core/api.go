@@ -40,18 +40,18 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 	}
 	checkPort, _ := strconv.Atoi(checkP)
 
-	ctx := context.Background()
-	if err := redisClient.Ping(ctx).Err(); err != nil {
-		logger.Fatal("Failed to connect to Redis", zap.Error(err))
-	}
-	logger.Info("Connected to Redis successfully", zap.String("addr", cfg.Redis.Addr))
-
 	// Initialize Redis client
 	redisClient = redis.NewClient(&redis.Options{
 		Addr:     cfg.Redis.Addr,
 		Password: cfg.Redis.Password,
 		DB:       cfg.Redis.DB,
 	})
+
+	ctx := context.Background()
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		logger.Fatal("Failed to connect to Redis", zap.Error(err))
+	}
+	logger.Info("Connected to Redis successfully", zap.String("addr", cfg.Redis.Addr))
 
 	// Initialize GitHub updater
 	encryptionKey := []byte(cfg.App.EncryptionKey)
