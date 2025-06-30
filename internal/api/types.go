@@ -77,10 +77,27 @@ type WorkerPoolStatus struct {
 	Uptime         string `json:"uptime"`
 }
 
+type BuildInfo struct {
+	Version   string `json:"version"`
+	Commit    string `json:"commit"`
+	Date      string `json:"date"`
+	GoVersion string `json:"go_version"`
+	Platform  string `json:"platform"`
+}
+
 type HealthResponse struct {
 	Status     string           `json:"status"`
 	Version    string           `json:"version"`
+	Build      BuildInfo        `json:"build"`
 	WorkerPool WorkerPoolStatus `json:"worker_pool"`
+}
+
+type VersionInfo struct {
+	Version   string
+	Commit    string
+	Date      string
+	GoVersion string
+	Platform  string
 }
 
 func NewJob(configs []string) *Job {
