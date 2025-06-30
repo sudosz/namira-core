@@ -25,7 +25,7 @@ const (
 	FILENAME    = "results.txt"
 	CLONE_DEPTH = 1
 	FILE_PERMS  = 0644
-	BOT_NAME    = "RayPing Bot"
+	BOT_NAME    = "Namira Bot"
 	BOT_EMAIL   = "namiranet@proton.me"
 	REMOTE_NAME = "origin"
 )
@@ -82,7 +82,7 @@ func NewUpdater(log *zap.Logger, sshKeyPath string, redisClient *redis.Client, r
 		repoURL:       fmt.Sprintf("git@github.com:%s/%s.git", repoOwner, repoName),
 		encryptionKey: encryptionKey,
 		logger:        log,
-		workDir:       fmt.Sprintf("/tmp/rayping-updater-%s-%s", repoOwner, repoName),
+		workDir:       fmt.Sprintf("/tmp/namira-core-updater-%s-%s", repoOwner, repoName),
 	}, nil
 }
 
