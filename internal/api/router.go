@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/NamiraNet/namira-core/internal/core"
 	"github.com/NamiraNet/namira-core/internal/github"
@@ -13,9 +14,9 @@ import (
 	"go.uber.org/zap"
 )
 
-func NewRouter(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, configSuccessHandler ConfigSuccessHandler, logger *zap.Logger, updater *github.Updater, worker *workerpool.WorkerPool, versionInfo VersionInfo) *mux.Router {
+func NewRouter(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, configSuccessHandler ConfigSuccessHandler, logger *zap.Logger, updater *github.Updater, worker *workerpool.WorkerPool, versionInfo VersionInfo, redisResultExpiration time.Duration) *mux.Router {
 	r := mux.NewRouter()
-	h := NewHandler(c, redisClient, callbackHandler, configSuccessHandler, logger, updater, worker, versionInfo)
+	h := NewHandler(c, redisClient, callbackHandler, configSuccessHandler, logger, updater, worker, versionInfo, redisResultExpiration)
 
 	r.Use(corsMiddleware, authMiddleware, loggingMiddleware)
 

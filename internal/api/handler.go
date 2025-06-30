@@ -30,25 +30,27 @@ type CallbackHandler func(CallbackHandlerResult)
 type ConfigSuccessHandler func(core.CheckResult)
 
 type Handler struct {
-	core          *core.Core
-	workerPool    *workerpool.WorkerPool
-	redis         *redis.Client
-	jobs          sync.Map
-	logger        *zap.Logger
-	updater       *github.Updater
-	jobsOnSuccess ConfigSuccessHandler
-	versionInfo   VersionInfo
+	core                  *core.Core
+	workerPool            *workerpool.WorkerPool
+	redis                 *redis.Client
+	jobs                  sync.Map
+	logger                *zap.Logger
+	updater               *github.Updater
+	jobsOnSuccess         ConfigSuccessHandler
+	versionInfo           VersionInfo
+	redisResultExpiration time.Duration
 }
 
-func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, configSuccessHandler ConfigSuccessHandler, logger *zap.Logger, updater *github.Updater, worker *workerpool.WorkerPool, versionInfo VersionInfo) *Handler {
+func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, configSuccessHandler ConfigSuccessHandler, logger *zap.Logger, updater *github.Updater, worker *workerpool.WorkerPool, versionInfo VersionInfo, redisResultExpiration time.Duration) *Handler {
 	handler := &Handler{
-		core:          c,
-		workerPool:    worker,
-		redis:         redisClient,
-		logger:        logger,
-		updater:       updater,
-		jobsOnSuccess: configSuccessHandler,
-		versionInfo:   versionInfo,
+		core:                  c,
+		workerPool:            worker,
+		redis:                 redisClient,
+		logger:                logger,
+		updater:               updater,
+		jobsOnSuccess:         configSuccessHandler,
+		versionInfo:           versionInfo,
+		redisResultExpiration: redisResultExpiration,
 	}
 
 	worker.SetResultHandler(handler.handleTaskResult(callbackHandler))
@@ -268,7 +270,7 @@ func (h *Handler) filterDuplicates(configs []string) ([]string, error) {
 	for i, cmd := range cmds {
 		if cmd.Val() == 0 {
 			uniqueConfigs = append(uniqueConfigs, configs[i])
-			pipe.Set(ctx, "config:"+hashes[i], "1", time.Hour)
+			pipe.Set(ctx, "config:"+hashes[i], "1", h.redisResultExpiration)
 		}
 	}
 
