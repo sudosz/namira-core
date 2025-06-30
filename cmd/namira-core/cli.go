@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 	"time"
@@ -38,6 +39,17 @@ func init() {
 }
 
 func runCli(cmd *cobra.Command, args []string) {
+	logger, err := logger.InitForCLI(cfg.App.LogLevel)
+	if err != nil {
+		fmt.Println("Failed to initialize logger:", err)
+		return
+	}
+	defer func() {
+		if syncErr := logger.Sync(); syncErr != nil {
+			fmt.Printf("Failed to sync logger: %v\n", syncErr)
+		}
+	}()
+
 	var configs []string
 
 	checkServer, checkP, err := net.SplitHostPort(cfg.App.CheckHost)

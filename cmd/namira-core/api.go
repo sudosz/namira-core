@@ -33,6 +33,17 @@ var apiCmd = &cobra.Command{
 }
 
 func runAPIServer(cmd *cobra.Command, args []string) {
+	logger, err := logger.InitForAPI(cfg.App.LogLevel, true)
+	if err != nil {
+		fmt.Println("Failed to initialize logger:", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if syncErr := logger.Sync(); syncErr != nil {
+			fmt.Printf("Failed to sync logger: %v\n", syncErr)
+		}
+	}()
+
 	// Use global config, but allow CLI flags to override
 	checkServer, checkP, err := net.SplitHostPort(cfg.App.CheckHost)
 	if err != nil {
@@ -56,6 +67,7 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 	// Initialize GitHub updater
 	encryptionKey := []byte(cfg.App.EncryptionKey)
 	updater, err = github.NewUpdater(
+		logger,
 		cfg.Github.SSHKeyPath,
 		redisClient,
 		cfg.Github.Owner,
@@ -63,14 +75,14 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 		encryptionKey,
 	)
 	if err != nil {
-		appLogger.Fatal("Failed to create updater:", zap.Error(err))
+		logger.Fatal("Failed to create updater:", zap.Error(err))
 	}
 
 	if err := updater.HealthCheck(); err != nil {
-		appLogger.Fatal("GitHub SSH connectivity test failed:", zap.Error(err))
+		logger.Fatal("GitHub SSH connectivity test failed:", zap.Error(err))
 	}
 
-	appLogger.Info("GitHub updater initialized successfully",
+	logger.Info("GitHub updater initialized successfully",
 		zap.String("repo", fmt.Sprintf("%s/%s", cfg.Github.Owner, cfg.Github.Repo)),
 		zap.String("ssh_key", cfg.Github.SSHKeyPath))
 
@@ -146,7 +158,7 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 		redisClient,
 		callbackHandler,
 		telegramConfigResultHandler,
-		appLogger,
+		logger,
 		updater,
 		worker)
 

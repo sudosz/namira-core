@@ -14,7 +14,6 @@ import (
 
 	"github.com/NamiraNet/namira-core/internal/core"
 	"github.com/NamiraNet/namira-core/internal/crypto"
-	"github.com/NamiraNet/namira-core/internal/logger"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
@@ -64,7 +63,7 @@ type JSONConfigResult struct {
 	Server      string `json:"server"`
 }
 
-func NewUpdater(sshKeyPath string, redisClient *redis.Client, repoOwner, repoName string, encryptionKey []byte) (*Updater, error) {
+func NewUpdater(log *zap.Logger, sshKeyPath string, redisClient *redis.Client, repoOwner, repoName string, encryptionKey []byte) (*Updater, error) {
 	if _, err := os.Stat(sshKeyPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("SSH key file not found: %s", sshKeyPath)
 	}
@@ -73,11 +72,6 @@ func NewUpdater(sshKeyPath string, redisClient *redis.Client, repoOwner, repoNam
 	auth, err := ssh.NewPublicKeysFromFile("git", sshKeyPath, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load SSH key: %w", err)
-	}
-
-	log, err := logger.Get()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get logger: %w", err)
 	}
 
 	return &Updater{

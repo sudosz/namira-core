@@ -10,10 +10,8 @@ import (
 	"github.com/NamiraNet/namira-core/internal/config"
 	"github.com/NamiraNet/namira-core/internal/core"
 	"github.com/NamiraNet/namira-core/internal/github"
-	"github.com/NamiraNet/namira-core/internal/logger"
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 )
 
 var (
@@ -43,7 +41,6 @@ var (
 	cfg         *config.Config
 	updater     *github.Updater
 	redisClient *redis.Client
-	appLogger   *zap.Logger
 )
 
 var rootCmd = &cobra.Command{
@@ -57,13 +54,6 @@ func init() {
 
 	// Load configuration from environment variables
 	cfg = config.Load()
-
-	// Initialize logger
-	var err error
-	appLogger, err = logger.Init(cfg.App.LogLevel)
-	if err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
-	}
 
 	rootCmd.PersistentFlags().StringVarP(&port, "port", "p", "", "Port to run the service on")
 	rootCmd.PersistentFlags().DurationVarP(&timeout, "timeout", "t", core.DefaultCheckTimeout, "Connection timeout")
