@@ -15,9 +15,11 @@ import (
 
 	"github.com/NamiraNet/namira-core/internal/api"
 	"github.com/NamiraNet/namira-core/internal/core"
+	"github.com/NamiraNet/namira-core/internal/github"
 	"github.com/NamiraNet/namira-core/internal/logger"
 	"github.com/NamiraNet/namira-core/internal/notify"
 	workerpool "github.com/NamiraNet/namira-core/internal/worker"
+	"github.com/go-redis/redis/v8"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
@@ -43,6 +45,34 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 		logger.Fatal("Failed to connect to Redis", zap.Error(err))
 	}
 	logger.Info("Connected to Redis successfully", zap.String("addr", cfg.Redis.Addr))
+
+	// Initialize Redis client
+	redisClient = redis.NewClient(&redis.Options{
+		Addr:     cfg.Redis.Addr,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	})
+
+	// Initialize GitHub updater
+	encryptionKey := []byte(cfg.App.EncryptionKey)
+	updater, err = github.NewUpdater(
+		cfg.Github.SSHKeyPath,
+		redisClient,
+		cfg.Github.Owner,
+		cfg.Github.Repo,
+		encryptionKey,
+	)
+	if err != nil {
+		appLogger.Fatal("Failed to create updater:", zap.Error(err))
+	}
+
+	if err := updater.HealthCheck(); err != nil {
+		appLogger.Fatal("GitHub SSH connectivity test failed:", zap.Error(err))
+	}
+
+	appLogger.Info("GitHub updater initialized successfully",
+		zap.String("repo", fmt.Sprintf("%s/%s", cfg.Github.Owner, cfg.Github.Repo)),
+		zap.String("ssh_key", cfg.Github.SSHKeyPath))
 
 	coreInstance := core.NewCore(core.CoreOpts{
 		CheckTimeout:       cfg.App.Timeout,

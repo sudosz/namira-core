@@ -65,34 +65,6 @@ func init() {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
 
-	// Initialize Redis client
-	redisClient = redis.NewClient(&redis.Options{
-		Addr:     cfg.Redis.Addr,
-		Password: cfg.Redis.Password,
-		DB:       cfg.Redis.DB,
-	})
-
-	// Initialize GitHub updater
-	encryptionKey := []byte(cfg.App.EncryptionKey)
-	updater, err = github.NewUpdater(
-		cfg.Github.SSHKeyPath,
-		redisClient,
-		cfg.Github.Owner,
-		cfg.Github.Repo,
-		encryptionKey,
-	)
-	if err != nil {
-		appLogger.Fatal("Failed to create updater:", zap.Error(err))
-	}
-
-	if err := updater.HealthCheck(); err != nil {
-		appLogger.Fatal("GitHub SSH connectivity test failed:", zap.Error(err))
-	}
-
-	appLogger.Info("GitHub updater initialized successfully",
-		zap.String("repo", fmt.Sprintf("%s/%s", cfg.Github.Owner, cfg.Github.Repo)),
-		zap.String("ssh_key", cfg.Github.SSHKeyPath))
-
 	rootCmd.PersistentFlags().StringVarP(&port, "port", "p", "", "Port to run the service on")
 	rootCmd.PersistentFlags().DurationVarP(&timeout, "timeout", "t", core.DefaultCheckTimeout, "Connection timeout")
 	rootCmd.PersistentFlags().IntVarP(&maxConcurrent, "concurrent", "c", 0, "Maximum concurrent connections")
@@ -113,6 +85,7 @@ func init() {
 
 	// Add the API server subcommand
 	rootCmd.AddCommand(apiCmd)
+	rootCmd.AddCommand(checkCmd)
 }
 
 func main() {
