@@ -305,7 +305,10 @@ func (h *Handler) executeCheckTask(ctx context.Context, data interface{}) (inter
 	value, exists := h.jobs.Load(taskData.JobID)
 	if !exists {
 		h.logger.Error("Job not found", zap.String("job_id", taskData.JobID))
-		return nil, nil
+		return CallbackHandlerResult{
+			JobID: taskData.JobID,
+			Error: fmt.Errorf("job not found: %s", taskData.JobID),
+		}, nil
 	}
 
 	job := value.(*Job)
@@ -321,13 +324,18 @@ func (h *Handler) executeCheckTask(ctx context.Context, data interface{}) (inter
 		}
 
 		if result.Error != "" {
-			h.logger.Error("error in check", zap.String("error", result.Error),
+			h.logger.Error("Config check failed",
+				zap.String("error", result.Error),
 				zap.String("status", string(result.Status)),
 				zap.String("server", result.Server),
 				zap.String("protocol", result.Protocol))
 			job.Done()
 		} else {
-			h.logger.Info("link response", zap.String("config", result.Raw))
+			h.logger.Info("Config check succeeded",
+				zap.String("server", result.Server),
+				zap.String("protocol", result.Protocol),
+				zap.Int64("delay_ms", result.RealDelay.Milliseconds()))
+
 			job.AddResult(HashConfig(result.Raw), checkResult)
 			if !strings.HasPrefix(job.ID, "refresh-") {
 				h.jobsOnSuccess(result)
@@ -336,7 +344,9 @@ func (h *Handler) executeCheckTask(ctx context.Context, data interface{}) (inter
 
 		if job.DoneCount >= job.TotalCount {
 			job.Complete()
-			h.logger.Info("Job completed", zap.String("job_id", taskData.JobID))
+			h.logger.Info("Job processing completed",
+				zap.String("job_id", taskData.JobID),
+				zap.Int("total_processed", job.TotalCount))
 		}
 		i++
 	}
@@ -370,19 +380,6 @@ func (h *Handler) handleTaskResult(callback CallbackHandler) func(workerpool.Res
 			if err := h.redis.Set(ctx, resultsKey, resultsData, REDIS_SET_DURATION).Err(); err != nil {
 				h.logger.Error("Failed to store results in Redis", zap.Error(err))
 				return
-			}
-
-			if strings.HasPrefix(callbackResult.JobID, "refresh-") {
-				if err := h.updater.ProcessRefreshResults(callbackResult.JobID); err != nil {
-					h.logger.Error("Failed to process scan results", zap.Error(err))
-					return
-				}
-			} else {
-				// Trigger GitHub update
-				if err := h.updater.ProcessScanResults(callbackResult.JobID); err != nil {
-					h.logger.Error("Failed to process scan results", zap.Error(err))
-					return
-				}
 			}
 
 			callback(callbackResult)
