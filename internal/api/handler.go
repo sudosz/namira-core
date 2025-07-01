@@ -39,9 +39,15 @@ type Handler struct {
 	jobsOnSuccess         ConfigSuccessHandler
 	versionInfo           VersionInfo
 	redisResultExpiration time.Duration
+
+	// Background refresh components
+	refreshMutex    sync.RWMutex
+	refreshTicker   *time.Ticker
+	refreshInterval time.Duration
+	refreshDone     chan struct{}
 }
 
-func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, configSuccessHandler ConfigSuccessHandler, logger *zap.Logger, updater *github.Updater, worker *workerpool.WorkerPool, versionInfo VersionInfo, redisResultExpiration time.Duration) *Handler {
+func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler CallbackHandler, configSuccessHandler ConfigSuccessHandler, logger *zap.Logger, updater *github.Updater, worker *workerpool.WorkerPool, versionInfo VersionInfo, redisResultExpiration time.Duration, refreshInterval time.Duration) *Handler {
 	handler := &Handler{
 		core:                  c,
 		workerPool:            worker,
@@ -51,16 +57,103 @@ func NewHandler(c *core.Core, redisClient *redis.Client, callbackHandler Callbac
 		jobsOnSuccess:         configSuccessHandler,
 		versionInfo:           versionInfo,
 		redisResultExpiration: redisResultExpiration,
+		refreshInterval:       refreshInterval,
+		refreshDone:           make(chan struct{}),
 	}
 
 	worker.SetResultHandler(handler.handleTaskResult(callbackHandler))
 	if err := worker.Start(); err != nil {
 		panic("Failed to start worker pool: " + err.Error())
 	}
+
+	// Start background refresh
+	go handler.startBackgroundRefresh()
+
 	return handler
 }
 
+func (h *Handler) startBackgroundRefresh() {
+	h.refreshTicker = time.NewTicker(h.refreshInterval)
+
+	go func() {
+		h.logger.Info("Background refresh started", zap.Duration("interval", h.refreshInterval))
+		for {
+			select {
+			case <-h.refreshTicker.C:
+				h.performBackgroundRefresh()
+			case <-h.refreshDone:
+				h.refreshTicker.Stop()
+				h.logger.Info("Background refresh stopped")
+				return
+			}
+		}
+	}()
+}
+
+func (h *Handler) performBackgroundRefresh() {
+	h.logger.Info("Starting background refresh of all configurations")
+
+	// Acquire write lock - blocks all API operations
+	h.refreshMutex.Lock()
+	defer h.refreshMutex.Unlock()
+
+	start := time.Now()
+
+	configs, err := h.updater.GetCurrentConfigs()
+	if err != nil {
+		h.logger.Error("Failed to fetch current configs during refresh", zap.Error(err))
+		return
+	}
+
+	if len(configs) == 0 {
+		h.logger.Info("No existing configs found, skipping refresh")
+		return
+	}
+
+	if err := h.flushRedisCache(); err != nil {
+		h.logger.Error("Failed to flush Redis cache", zap.Error(err))
+		return
+	}
+
+	job := NewJob(configs)
+	job.ID = "refresh-" + job.ID // Mark as refresh job
+	h.jobs.Store(job.ID, job)
+	job.Start()
+
+	if err := h.workerPool.Submit(workerpool.Task{
+		ID:      job.ID,
+		Data:    TaskData{JobID: job.ID, Configs: configs},
+		Execute: h.executeCheckTask,
+		Callback: func(res interface{}, _ error) {
+			result := res.(CallbackHandlerResult)
+			if result.Error != nil {
+				h.logger.Error("Failed to execute refresh task", zap.Error(result.Error))
+				job.Fail(result.Error)
+				return
+			}
+			job.Complete()
+
+			h.logger.Info("Background refresh completed",
+				zap.Duration("duration", time.Since(start)),
+				zap.Int("configs_refreshed", len(configs)),
+				zap.String("job_id", job.ID))
+		},
+	}); err != nil {
+		h.logger.Error("Failed to submit refresh task", zap.Error(err))
+		job.Fail(err)
+		return
+	}
+}
+
 func (h *Handler) handleScan(w http.ResponseWriter, r *http.Request) {
+	// Acquire read lock - allows concurrent API calls but blocks during refresh
+	if !h.refreshMutex.TryRLock() {
+		h.logger.Info("Background refresh in progress, skipping scan")
+		writeError(w, "Background refresh in progress", http.StatusServiceUnavailable)
+		return
+	}
+	defer h.refreshMutex.RUnlock()
+
 	var configs []string
 
 	// Check content type
@@ -167,6 +260,46 @@ func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) flushRedisCache() error {
+	const (
+		pattern   = "config:*"
+		batchSize = 1000
+	)
+
+	ctx := context.Background()
+	iter := h.redis.Scan(ctx, 0, pattern, 0).Iterator()
+	pipe := h.redis.Pipeline()
+	defer pipe.Close()
+
+	batch := make([]string, 0, batchSize)
+	for iter.Next(ctx) {
+		batch = append(batch, iter.Val())
+
+		if len(batch) == batchSize {
+			if err := pipe.Del(ctx, batch...).Err(); err != nil {
+				return fmt.Errorf("failed to delete batch from Redis: %w", err)
+			}
+			batch = batch[:0]
+		}
+	}
+
+	if len(batch) > 0 {
+		if err := pipe.Del(ctx, batch...).Err(); err != nil {
+			return fmt.Errorf("failed to delete remaining keys from Redis: %w", err)
+		}
+	}
+
+	if err := iter.Err(); err != nil {
+		return fmt.Errorf("failed to iterate Redis keys: %w", err)
+	}
+
+	if _, err := pipe.Exec(ctx); err != nil {
+		return fmt.Errorf("failed to execute Redis pipeline: %w", err)
+	}
+
+	return nil
+}
+
 func (h *Handler) executeCheckTask(ctx context.Context, data interface{}) (interface{}, error) {
 	taskData := data.(TaskData)
 	value, exists := h.jobs.Load(taskData.JobID)
@@ -196,7 +329,9 @@ func (h *Handler) executeCheckTask(ctx context.Context, data interface{}) (inter
 		} else {
 			h.logger.Info("link response", zap.String("config", result.Raw))
 			job.AddResult(HashConfig(result.Raw), checkResult)
-			h.jobsOnSuccess(result)
+			if !strings.HasPrefix(job.ID, "refresh-") {
+				h.jobsOnSuccess(result)
+			}
 		}
 
 		if job.DoneCount >= job.TotalCount {
@@ -237,10 +372,17 @@ func (h *Handler) handleTaskResult(callback CallbackHandler) func(workerpool.Res
 				return
 			}
 
-			// Trigger GitHub update
-			if err := h.updater.ProcessScanResults(callbackResult.JobID); err != nil {
-				h.logger.Error("Failed to process scan results", zap.Error(err))
-				return
+			if strings.HasPrefix(callbackResult.JobID, "refresh-") {
+				if err := h.updater.ProcessRefreshResults(callbackResult.JobID); err != nil {
+					h.logger.Error("Failed to process scan results", zap.Error(err))
+					return
+				}
+			} else {
+				// Trigger GitHub update
+				if err := h.updater.ProcessScanResults(callbackResult.JobID); err != nil {
+					h.logger.Error("Failed to process scan results", zap.Error(err))
+					return
+				}
 			}
 
 			callback(callbackResult)

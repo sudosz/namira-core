@@ -168,7 +168,8 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 		updater,
 		worker,
 		versionInfo,
-		cfg.Redis.ResultTTL)
+		cfg.Redis.ResultTTL,
+		cfg.App.RefreshInterval)
 
 	serverAddr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)
 	server := &http.Server{

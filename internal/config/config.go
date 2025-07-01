@@ -45,11 +45,12 @@ type GithubConfig struct {
 }
 
 type AppConfig struct {
-	LogLevel      string
-	Timeout       time.Duration
-	MaxConcurrent int
-	CheckHost     string
-	EncryptionKey string
+	LogLevel        string
+	Timeout         time.Duration
+	RefreshInterval time.Duration
+	MaxConcurrent   int
+	CheckHost       string
+	EncryptionKey   string
 }
 
 type TelegramConfig struct {
@@ -87,11 +88,12 @@ func Load() *Config {
 			Repo:       getEnv("GITHUB_REPO", ""),
 		},
 		App: AppConfig{
-			LogLevel:      getEnv("LOG_LEVEL", "info"),
-			Timeout:       getEnvDuration("APP_TIMEOUT", 10*time.Second),
-			MaxConcurrent: getEnvInt("MAX_CONCURRENT", 0),
-			CheckHost:     getEnv("CHECK_HOST", "1.1.1.1:80"),
-			EncryptionKey: getEnv("ENCRYPTION_KEY", ""),
+			LogLevel:        getEnv("LOG_LEVEL", "info"),
+			Timeout:         getEnvDuration("APP_TIMEOUT", 10*time.Second),
+			MaxConcurrent:   getEnvInt("MAX_CONCURRENT", 0),
+			CheckHost:       getEnv("CHECK_HOST", "1.1.1.1:80"),
+			EncryptionKey:   getEnv("ENCRYPTION_KEY", ""),
+			RefreshInterval: getEnvDuration("REFRESH_INTERVAL", time.Hour),
 		},
 		Telegram: TelegramConfig{
 			BotToken:        getEnv("TELEGRAM_BOT_TOKEN", ""),

@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -99,26 +101,35 @@ func (u *Updater) HealthCheck() error {
 	return err
 }
 
-func (u *Updater) ProcessScanResults(jobID string) error {
+func (u *Updater) processScanResultsCommon(jobID string, merge bool, taskType string) error {
 	resultsData, err := u.fetchResults(jobID)
 	if err != nil {
-		return err
+		return fmt.Errorf("fetch results failed: %w", err)
 	}
 
 	results, err := u.prepareContent(resultsData)
 	if err != nil {
-		return err
+		return fmt.Errorf("prepare content failed: %w", err)
 	}
 
-	if err := u.updateFileViaGit(jobID, results); err != nil {
-		return err
+	if err := u.updateFileViaGit(jobID, results, merge); err != nil {
+		return fmt.Errorf("git update failed: %w", err)
 	}
 
 	u.logger.Info("Successfully updated results on GitHub",
 		zap.String("job_id", jobID),
+		zap.String("task_type", taskType),
 		zap.String("repo", fmt.Sprintf("%s/%s", u.repoOwner, u.repoName)))
 
 	return nil
+}
+
+func (u *Updater) ProcessScanResults(jobID string) error {
+	return u.processScanResultsCommon(jobID, true, "scan")
+}
+
+func (u *Updater) ProcessRefreshResults(jobID string) error {
+	return u.processScanResultsCommon(jobID, false, "refresh")
 }
 
 func (u *Updater) fetchResults(jobID string) ([]byte, error) {
@@ -138,7 +149,7 @@ func (u *Updater) prepareContent(resultsData []byte) (JSONResult, error) {
 	return formatResultsJSON(scanResult), nil
 }
 
-func (u *Updater) updateFileViaGit(jobID string, current JSONResult) error {
+func (u *Updater) updateFileViaGit(jobID string, current JSONResult, merge bool) error {
 	os.RemoveAll(u.workDir)
 	defer os.RemoveAll(u.workDir)
 
@@ -153,8 +164,10 @@ func (u *Updater) updateFileViaGit(jobID string, current JSONResult) error {
 
 	filePath := filepath.Join(u.workDir, FILENAME)
 
-	if err := u.mergeExistingContent(filePath, &current); err != nil {
-		u.logger.Warn("Failed to merge existing content.", zap.Error(err))
+	if merge {
+		if err := u.mergeExistingContent(filePath, &current); err != nil {
+			u.logger.Warn("Failed to merge existing content.", zap.Error(err))
+		}
 	}
 
 	if err := u.writeEncryptedContent(filePath, current); err != nil {
@@ -254,6 +267,102 @@ func (u *Updater) commitAndPush(repo *git.Repository, jobID string) error {
 		return fmt.Errorf("failed to push: %w", err)
 	}
 	return nil
+}
+
+func (u *Updater) GetCurrentConfigsViaHTTP() ([]string, error) {
+	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/main/%s",
+		u.repoOwner, u.repoName, FILENAME)
+
+	u.logger.Debug("Fetching configs via HTTP", zap.String("url", rawURL))
+
+	req, err := http.NewRequest(http.MethodGet, rawURL, http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
+	}
+
+	req.Header.Set("User-Agent", "namira-core/1.1.0")
+	req.Header.Set("Accept", "text/plain")
+
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch file: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		u.logger.Info("No existing config file found, starting fresh")
+		return []string{}, nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP error: %d %s", resp.StatusCode, resp.Status)
+	}
+
+	content, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	return u.decryptAndParseConfigs(content)
+}
+
+func (u *Updater) decryptAndParseConfigs(content []byte) ([]string, error) {
+	decoded, err := base64.StdEncoding.DecodeString(string(content))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode content: %w", err)
+	}
+
+	decrypted, err := crypto.Decrypt(decoded, u.encryptionKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt content: %w", err)
+	}
+
+	var existing JSONResult
+	if err := json.Unmarshal(decrypted, &existing); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal content: %w", err)
+	}
+
+	configs := make([]string, len(existing.Results))
+	for i, result := range existing.Results {
+		configs[i] = result.RawConfig
+	}
+
+	u.logger.Info("Successfully fetched configs", zap.Int("count", len(configs)))
+	return configs, nil
+}
+
+func (u *Updater) GetCurrentConfigsViaGit() ([]string, error) {
+	os.RemoveAll(u.workDir)
+	defer os.RemoveAll(u.workDir)
+
+	_, err := git.PlainClone(u.workDir, false, &git.CloneOptions{
+		URL:   u.repoURL,
+		Auth:  u.auth,
+		Depth: CLONE_DEPTH,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to clone repository: %w", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(u.workDir, FILENAME))
+	if err != nil {
+		return []string{}, nil
+	}
+
+	return u.decryptAndParseConfigs(content)
+}
+
+func (u *Updater) GetCurrentConfigs() ([]string, error) {
+	configs, err := u.GetCurrentConfigsViaHTTP()
+	if err != nil {
+		u.logger.Warn("HTTP fetch failed, falling back to Git clone", zap.Error(err))
+		return u.GetCurrentConfigsViaGit()
+	}
+	return configs, nil
 }
 
 func formatResultsJSON(scanResult ScanResult) JSONResult {
