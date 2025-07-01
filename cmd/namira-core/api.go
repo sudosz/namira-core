@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 
 	"net/http"
 	"net/url"
@@ -98,12 +99,40 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 		},
 	})
 
-	// Define callback handler for completed jobs
 	callbackHandler := func(result api.CallbackHandlerResult) {
 		if result.Error != nil {
-			logger.Error("Job failed", zap.String("job_id", result.JobID), zap.Error(result.Error))
+			logger.Error("Job failed",
+				zap.String("job_id", result.JobID),
+				zap.Error(result.Error))
+			return
+		}
+
+		logger.Info("Job completed successfully",
+			zap.String("job_id", result.JobID),
+			zap.Int("total_results", len(result.Results)),
+			zap.Int("valid_configs", countValidConfigs(result.Results)))
+
+		// Determine job type and handle accordingly
+		if strings.HasPrefix(result.JobID, "refresh-") {
+			// Background refresh job - update GitHub with all results
+			if err := updater.ProcessRefreshResults(result.JobID); err != nil {
+				logger.Error("Failed to process refresh results",
+					zap.String("job_id", result.JobID),
+					zap.Error(err))
+			} else {
+				logger.Info("Refresh results processed successfully",
+					zap.String("job_id", result.JobID))
+			}
 		} else {
-			logger.Info("Jobs Completed", zap.String("job_id", result.JobID), zap.Int("total", len(result.Results)))
+			// Regular scan job - merge with existing configs
+			if err := updater.ProcessScanResults(result.JobID); err != nil {
+				logger.Error("Failed to process scan results",
+					zap.String("job_id", result.JobID),
+					zap.Error(err))
+			} else {
+				logger.Info("Scan results processed successfully",
+					zap.String("job_id", result.JobID))
+			}
 		}
 	}
 
@@ -203,4 +232,15 @@ func runAPIServer(cmd *cobra.Command, args []string) {
 	if err := server.Shutdown(ctx); err != nil {
 		logger.Fatal("Server forced to shutdown", zap.Error(err))
 	}
+}
+
+// Helper function to count valid configurations
+func countValidConfigs(results []core.CheckResult) int {
+	count := 0
+	for _, result := range results {
+		if result.Error == "" && result.Status == core.CheckResultStatusSuccess {
+			count++
+		}
+	}
+	return count
 }
