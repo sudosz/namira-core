@@ -173,6 +173,7 @@ The application is configured via environment variables:
 |----------|---------|-------------|
 | LOG_LEVEL | info | Logging level **(debug, info, warn, error)** |
 | APP_TIMEOUT | 10s | Connection timeout per proxy test |
+| REFRESH_INTERVAL | 1h | Background refresh interval |
 | MAX_CONCURRENT | 50 | Maximum concurrent connections |
 | ENCRYPTION_KEY | - | Key for encrypting sensitive data |
 
